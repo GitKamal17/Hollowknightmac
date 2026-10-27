@@ -3,8 +3,13 @@
 
 export const TILE = 32;
 export const DT = 1 / 60;
+/** Virtual screen resolution for UI layout. */
 export const VIEW_W = 960;
 export const VIEW_H = 540;
+/** The world is drawn zoomed in, so the camera sees this much of it. */
+export const ZOOM = 1.2;
+export const WORLD_VIEW_W = VIEW_W / ZOOM;
+export const WORLD_VIEW_H = VIEW_H / ZOOM;
 
 export const PLAYER = {
   w: 18,

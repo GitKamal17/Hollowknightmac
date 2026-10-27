@@ -1,5 +1,5 @@
 import { approach, clamp, damp } from './math';
-import { VIEW_H, VIEW_W } from './tuning';
+import { WORLD_VIEW_H, WORLD_VIEW_W } from './tuning';
 
 interface Target {
   cx: number;
@@ -23,8 +23,8 @@ export class Camera {
   y = 0;
   px = 0;
   py = 0;
-  readonly w = VIEW_W;
-  readonly h = VIEW_H;
+  readonly w = WORLD_VIEW_W;
+  readonly h = WORLD_VIEW_H;
   look = 0;
   focusY = 0;
   trauma = 0;

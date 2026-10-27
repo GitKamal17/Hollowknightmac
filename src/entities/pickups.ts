@@ -62,8 +62,9 @@ export class Relic extends Pickup {
   readonly kind = 'relic';
   constructor(cx: number, bottom: number) {
     super();
-    this.w = this.h = 28;
-    this.placeAt(cx, bottom - 10);
+    this.w = 28;
+    this.h = 34;
+    this.placeAt(cx, bottom - 4);
   }
 }
 
