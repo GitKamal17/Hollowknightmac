@@ -11,6 +11,7 @@ export interface SaveData {
   echo: { room: string; x: number; y: number; amount: number } | null;
   wings: boolean;
   duelDefeated: boolean;
+  matronDefeated: boolean;
   /** The secret shard hoard has been emptied. */
   cache: boolean;
   /** Levels bought from the merchant. */
@@ -36,6 +37,7 @@ export function newSave(): SaveData {
     echo: null,
     wings: false,
     duelDefeated: false,
+    matronDefeated: false,
     cache: false,
     upgrades: { mask: 0, blade: 0, focus: 0, vessel: 0 },
   };
@@ -52,9 +54,10 @@ function validate(raw: unknown): SaveData | null {
   s.bossDefeated = r.bossDefeated === true;
   s.wings = r.wings === true;
   s.duelDefeated = r.duelDefeated === true;
+  s.matronDefeated = r.matronDefeated === true;
   s.cache = r.cache === true;
   const u = (r.upgrades ?? {}) as Record<string, unknown>;
-  for (const id of UPGRADE_IDS) s.upgrades[id] = isNum(u[id]) ? Math.max(0, Math.min(2, Math.floor(u[id]))) : 0;
+  for (const id of UPGRADE_IDS) s.upgrades[id] = isNum(u[id]) ? Math.max(0, Math.min(3, Math.floor(u[id]))) : 0;
   s.shards = isNum(r.shards) ? Math.max(0, Math.floor(r.shards)) : 0;
   const b = r.bench as Record<string, unknown> | null;
   if (b && typeof b.room === 'string' && isNum(b.x) && isNum(b.y)) s.bench = { room: b.room, x: b.x, y: b.y };

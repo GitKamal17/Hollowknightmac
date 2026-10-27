@@ -6,7 +6,7 @@ import { Entity } from './entity';
 import type { Attack } from './player';
 
 export type StrikeResult = 'hit' | 'blocked' | 'none';
-export type EnemyKind = 'skitter' | 'duskmoth' | 'ironshell' | 'spitter' | 'warden' | 'vesper';
+export type EnemyKind = 'skitter' | 'duskmoth' | 'ironshell' | 'spitter' | 'broodling' | 'egg' | 'warden' | 'vesper' | 'ashveil';
 
 export abstract class Enemy extends Entity {
   abstract readonly kind: EnemyKind;

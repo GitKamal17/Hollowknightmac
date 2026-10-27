@@ -13,6 +13,8 @@ export interface RoomDef {
   /** For doors entered from below: which way to nudge the player onto a ledge. */
   land?: Record<string, 1 | -1>;
   texts?: string[];
+  /** Which boss opens this room's seal tiles (default: the Warden). */
+  sealedBy?: 'warden' | 'vesper';
   /** Tile column the player must pass to wake the boss. */
   bossTriggerX?: number;
 }
@@ -54,9 +56,9 @@ const TILE_CHARS: Record<string, TileId> = {
   S: Tile.Seal,
 };
 
-const DOOR_CHARS = /^[0-9w-z]$/;
+const DOOR_CHARS = /^[0-9know-z]$/;
 
-const ENTITY_CHARS = new Set(['P', 'T', 'L', 'c', 'f', 's', 'p', 'B', 'V', 'D', 'W', 'M', 'Q']);
+const ENTITY_CHARS = new Set(['P', 'T', 'L', 'c', 'f', 's', 'p', 'b', 'B', 'V', 'A', 'D', 'W', 'M', 'Q']);
 
 export function parseRoom(def: RoomDef): Room {
   const h = def.map.length;

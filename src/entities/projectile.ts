@@ -2,7 +2,7 @@ import { DT } from '../core/tuning';
 import type { World } from '../world/world';
 import { Entity } from './entity';
 
-export type ProjectileKind = 'orb' | 'wave' | 'debris' | 'glob' | 'slash' | 'crescent';
+export type ProjectileKind = 'orb' | 'wave' | 'debris' | 'glob' | 'slash' | 'crescent' | 'feather' | 'vine';
 
 export class Projectile extends Entity {
   g = 0;
@@ -47,12 +47,12 @@ export class Projectile extends Entity {
     this.y += this.vy * DT;
 
     const map = w.map;
-    if (this.kind === 'slash') {
-      // A blade arc: stays put for a moment, ignores walls.
+    if (this.kind === 'slash' || this.kind === 'vine') {
+      // Blade arcs and thorn vines stay put for a moment and ignore walls.
       if (this.life <= 0) this.dead = true;
       return;
     }
-    if (this.kind === 'wave' || this.kind === 'crescent') {
+    if (this.kind === 'wave' || this.kind === 'crescent' || this.kind === 'feather') {
       if (map.overlapsSolid(this.x, this.y, this.w, this.h - 4) || this.life <= 0) this.pop(w);
       else if (this.kind === 'wave' && this.t % 0.04 < DT) w.particles.embers(this.cx, this.y + this.h, 1);
     } else if (map.overlapsSolid(this.x + 2, this.y + 2, this.w - 4, this.h - 4) || this.life <= 0) {
@@ -70,6 +70,7 @@ export class Projectile extends Entity {
     } else {
       if (this.kind === 'glob') w.particles.burst(this.cx, this.cy, 8, '#9be86a', 160, 3);
       else if (this.kind === 'crescent') w.particles.burst(this.cx, this.cy, 10, '#c9a6ff', 200, 3);
+      else if (this.kind === 'feather') w.particles.burst(this.cx, this.cy, 5, '#e8d9c0', 140, 2);
       else w.particles.embers(this.cx, this.cy, this.kind === 'orb' ? 8 : 5);
     }
   }

@@ -12,7 +12,7 @@ export interface ShopItem {
 // Prices are set against income: a full pass of the first area yields roughly
 // 60-80 shards, the Warden drops 40, and the second area pays more.
 export const SHOP: ShopItem[] = [
-  { id: 'mask', name: 'Mask Shard', desc: 'One more mask of health.', costs: [60, 150] },
+  { id: 'mask', name: 'Mask Shard', desc: 'One more mask of health.', costs: [60, 150, 260] },
   { id: 'vessel', name: 'Deep Vessel', desc: 'Strikes gather more essence, so you heal more often.', costs: [70] },
   { id: 'focus', name: 'Quick Focus', desc: 'Healing channels much faster.', costs: [90] },
   { id: 'blade', name: 'Honed Blade', desc: 'Every strike deals double damage.', costs: [180] },

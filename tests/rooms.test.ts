@@ -49,6 +49,7 @@ describe('walking through doors', () => {
       const save = newSave();
       save.dash = true;
       save.bossDefeated = true; // opens the seal east of the Warden
+      save.duelDefeated = true; // and the one behind Vesper
       const w = new World({ save });
       w.warp(c.room, c.door);
       w.enemies = []; // test the doors, not the fights

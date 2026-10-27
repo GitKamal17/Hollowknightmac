@@ -10,6 +10,8 @@ import { Echo, Hoard, Lantern, Merchant, Relic, Shard, Tablet, type Pickup } fro
 import { Player, type PlayerEvent, type PlayerHost } from '../entities/player';
 import type { Projectile } from '../entities/projectile';
 import { Skitter } from '../entities/skitter';
+import { Ashveil } from '../entities/ashveil';
+import { BroodEgg, Broodling } from '../entities/brood';
 import { Spitter } from '../entities/spitter';
 import { Vesper } from '../entities/vesper';
 import { Warden } from '../entities/warden';
@@ -80,7 +82,7 @@ export class World implements PlayerHost {
   modal: Modal | null = null;
   banner: Banner | null = null;
   private pendingModal: { delay: number; title: string; body: string } | null = null;
-  boss: Warden | Vesper | null = null;
+  boss: Warden | Vesper | Ashveil | null = null;
   bossActive = false;
   gateAnim = 0;
   nearLantern: Lantern | null = null;
@@ -135,7 +137,7 @@ export class World implements PlayerHost {
     }
     this.room = room;
     room.map.gatesClosed = false;
-    room.map.sealOpen = this.save.bossDefeated;
+    room.map.sealOpen = def.sealedBy === 'vesper' ? this.save.duelDefeated : this.save.bossDefeated;
     this.gateAnim = 0;
     this.enemies = [];
     this.projectiles = [];
@@ -157,6 +159,15 @@ export class World implements PlayerHost {
           break;
         case 'p':
           this.enemies.push(new Spitter(s.x, s.y));
+          break;
+        case 'b':
+          this.enemies.push(new Broodling(s.x, s.y - TILE / 2));
+          break;
+        case 'A':
+          if (!this.save.matronDefeated) {
+            this.boss = new Ashveil(s.x, s.y);
+            this.enemies.push(this.boss);
+          }
           break;
         case 'V':
           if (!this.save.duelDefeated) {
@@ -407,7 +418,7 @@ export class World implements PlayerHost {
       const hy = (Math.max(box.y, hb.y) + Math.min(box.y + box.h, hb.y + hb.h)) / 2;
       if (r === 'hit') {
         p.gainSoul();
-        const isBoss = e.kind === 'warden' || e.kind === 'vesper';
+        const isBoss = e === this.boss;
         this.hitstop = Math.max(this.hitstop, isBoss ? HITSTOP.boss : HITSTOP.enemy);
         this.camera.addTrauma(isBoss ? 0.14 : 0.22);
         this.particles.sparks(hx, hy, 10, '#ffffff', atk.dir === 'side' ? atk.facing : 0);
@@ -514,6 +525,7 @@ export class World implements PlayerHost {
   }
 
   onEnemyKilled(e: Enemy): void {
+    if (e instanceof Broodling || e instanceof BroodEgg) e.mother?.onChildLost(this);
     this.spawnShards(e.cx, e.cy, e.shards);
     this.particles.burst(e.cx, e.cy, 18, '#ff9a4a', 280, 3);
     this.particles.debris(e.cx, e.cy, 5);
@@ -521,12 +533,12 @@ export class World implements PlayerHost {
     this.sfx('enemyDie');
   }
 
-  onBossDefeated(b: Warden | Vesper): void {
+  onBossDefeated(b: Warden | Vesper | Ashveil): void {
     this.bossActive = false;
     this.map.gatesClosed = false;
     this.boss = null;
     this.spawnShards(b.cx, b.cy, b.shards);
-    this.particles.burst(b.cx, b.cy, 70, b instanceof Warden ? '#ffb27a' : '#c9a6ff', 460, 4);
+    this.particles.burst(b.cx, b.cy, 70, b instanceof Warden ? '#ffb27a' : b instanceof Vesper ? '#c9a6ff' : '#f0d8a8', 460, 4);
     this.camera.addTrauma(0.9);
     this.flash = 1;
     this.sfx('bossBreak');
@@ -538,12 +550,22 @@ export class World implements PlayerHost {
         title: 'The Warden Falls',
         body: 'The well grows quiet, and the seal to the east crumbles.\nBeyond it lies the Lowmarket, where shards buy strength.',
       };
-    } else {
+    } else if (b instanceof Vesper) {
       this.save.duelDefeated = true;
+      this.map.sealOpen = true;
       this.pendingModal = {
         delay: 2.6,
         title: 'Vesper Yields',
-        body: '"At last, a worthy blade." She lowers hers.\nYou have reached the end of Gloamwell. Thank you for playing.\nYour progress is saved; explore as you like.',
+        body: '"At last, a worthy blade." She lowers hers and steps aside.\nBehind her court the seal crumbles. Something vast stirs in the gloom beyond.',
+      };
+    } else {
+      this.save.matronDefeated = true;
+      // Her brood dies with her.
+      for (const e of this.enemies) if (e instanceof Broodling || e instanceof BroodEgg) e.dead = true;
+      this.pendingModal = {
+        delay: 2.8,
+        title: 'The Brood Falls Silent',
+        body: 'Mother Ashveil folds her torn wings, and the nest goes still.\nYou have reached the end of Gloamwell. Thank you for playing.\nYour progress is saved; explore as you like.',
       };
     }
     this.persist();

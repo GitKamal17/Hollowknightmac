@@ -137,24 +137,41 @@ describe('Needle Spires', () => {
   });
 });
 
+describe('The Hanging Gloom', () => {
+  it('its thorn pit can be crossed perch to perch', () => {
+    const w = world({ bossDefeated: true, duelDefeated: true, wings: true });
+    w.warp('gloom', 'k');
+    const log: string[] = [];
+    for (const [a, b, row] of [
+      [19, 22, 14],
+      [27, 30, 12],
+      [35, 37, 14],
+      [41, 50, 17],
+    ] as [number, number, number][]) {
+      expect(climbTo(w, a, b, row, 240, log), `perch at col ${a}`).toBe(true);
+    }
+    expect(log).toEqual([]);
+  });
+});
+
 describe('merchant', () => {
   it('sells upgrades for shards and they change the player', () => {
     const kv = memoryStorage();
-    const save = { ...newSave(), shards: 1000 };
+    const save = { ...newSave(), shards: 2000 };
     const w = new World({ save, store: kv });
     const p = w.player;
     expect(p.maxHp).toBe(PLAYER.maxHp);
     for (const item of SHOP) while (buy(w.save, item) === 'bought');
     w.applyStats();
-    expect(p.maxHp).toBe(PLAYER.maxHp + 2);
+    expect(p.maxHp).toBe(PLAYER.maxHp + 3);
     expect(p.damage).toBe(2);
     expect(p.healTime).toBeLessThan(PLAYER.healTime);
     expect(p.soulPerHit).toBeGreaterThan(PLAYER.soulPerHit);
     const spent = SHOP.reduce((n, it) => n + it.costs.reduce((a, b) => a + b, 0), 0);
-    expect(w.save.shards).toBe(1000 - spent);
+    expect(w.save.shards).toBe(2000 - spent);
     expect(buy(w.save, SHOP[0])).toBe('sold-out');
     w.persist();
-    expect(loadSave(kv)?.upgrades).toEqual({ mask: 2, blade: 1, focus: 1, vessel: 1 });
+    expect(loadSave(kv)?.upgrades).toEqual({ mask: 3, blade: 1, focus: 1, vessel: 1 });
   });
 
   it('refuses when you are short', () => {
