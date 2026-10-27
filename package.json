@@ -1,0 +1,20 @@
+{
+  "name": "gloamwell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An original 2D action-platformer vertical slice with tight, Hollow Knight-inspired game feel.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}
