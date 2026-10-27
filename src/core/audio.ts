@@ -280,6 +280,46 @@ export class AudioFx {
         this.tone({ f: 90, f2: 60, dur: 0.6, gain: 0.25, type: 'square' });
         this.noise({ dur: 0.5, f: 300, type: 'lowpass', gain: 0.3 });
         break;
+      case 'doublejump':
+        this.noise({ dur: 0.16, f: 2200, f2: 900, gain: 0.1, q: 1.2 });
+        this.tone({ f: 520, f2: 780, dur: 0.12, gain: 0.05, type: 'triangle' });
+        break;
+      case 'skitter':
+        this.noise({ dur: 0.12, f: 3600, gain: 0.05, q: 4 });
+        break;
+      case 'spit':
+        this.noise({ dur: 0.14, f: 700, f2: 1500, gain: 0.12, q: 2 });
+        this.tone({ f: 180, f2: 320, dur: 0.1, gain: 0.06 });
+        break;
+      case 'parry':
+        this.tone({ f: 1760, dur: 0.35, gain: 0.12, type: 'triangle' });
+        this.tone({ f: 2637, dur: 0.25, gain: 0.06, type: 'sine' });
+        this.noise({ dur: 0.06, f: 6000, gain: 0.14 });
+        break;
+      case 'enemySlash':
+        this.noise({ dur: 0.12, f: 3000, f2: 1400, gain: 0.12, q: 1.6 });
+        break;
+      case 'crescent':
+        this.tone({ f: 660, f2: 330, dur: 0.3, gain: 0.08, type: 'triangle' });
+        this.noise({ dur: 0.25, f: 1800, gain: 0.07 });
+        break;
+      case 'vesperIntro':
+        [392, 466, 587].forEach((f, i) => this.tone({ f, dur: 0.6, gain: 0.07, delay: i * 0.1, type: 'triangle' }));
+        this.noise({ dur: 0.3, f: 4000, gain: 0.08, delay: 0.3 });
+        break;
+      case 'shopOpen':
+        this.tone({ f: 523, dur: 0.15, gain: 0.06, type: 'triangle' });
+        this.tone({ f: 659, dur: 0.2, gain: 0.05, type: 'triangle', delay: 0.07 });
+        break;
+      case 'buy':
+        [784, 988, 1175, 1568].forEach((f, i) => this.tone({ f, dur: 0.3, gain: 0.06, delay: i * 0.05 }));
+        break;
+      case 'denied':
+        this.tone({ f: 200, f2: 150, dur: 0.18, gain: 0.08, type: 'square' });
+        break;
+      case 'hoard':
+        for (let i = 0; i < 8; i++) this.tone({ f: 1500 + Math.random() * 1200, dur: 0.12, gain: 0.04, delay: i * 0.04 });
+        break;
       case 'menu':
         this.tone({ f: 880, dur: 0.05, gain: 0.05, type: 'triangle' });
         break;

@@ -3,10 +3,12 @@ import { clamp } from '../core/math';
 import { PLAYER, TILE } from '../core/tuning';
 import type { Duskmoth } from '../entities/duskmoth';
 import type { Ironshell } from '../entities/ironshell';
-import type { Echo, Lantern, Relic, Shard, Tablet } from '../entities/pickups';
+import type { Echo, Hoard, Lantern, Merchant, Relic, Shard, Tablet } from '../entities/pickups';
 import type { Player } from '../entities/player';
 import type { Projectile } from '../entities/projectile';
 import type { Skitter } from '../entities/skitter';
+import type { Spitter } from '../entities/spitter';
+import type { Vesper } from '../entities/vesper';
 import type { Warden } from '../entities/warden';
 import type { TileMap } from '../physics/tilemap';
 
@@ -492,6 +494,45 @@ export function drawWarden(ctx: Ctx, e: Warden, x: number, y: number, t: number)
 export function drawProjectile(ctx: Ctx, pr: Projectile, x: number, y: number, map: TileMap, t: number): void {
   const cx = x + pr.w / 2;
   const cy = y + pr.h / 2;
+  if (pr.kind === 'glob') {
+    glow(ctx, cx, cy, 18, '#8fe060', 0.6);
+    ctx.fillStyle = '#b6f07a';
+    ellipse(ctx, cx, cy, 6 + Math.sin(t * 30) * 0.8, 6 - Math.sin(t * 30) * 0.8);
+    ctx.fillStyle = '#eaffd0';
+    ellipse(ctx, cx - 2, cy - 2, 1.8, 1.8);
+    return;
+  }
+  if (pr.kind === 'slash') {
+    // Enemy blade arc: dark violet with a bright edge, fading over its short life.
+    const a = clamp(pr.life / 0.13, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(90,50,140,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, pr.w / 2, pr.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#e3d0ff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, pr.w / 2, pr.h / 2, 0, -2.6, 0.5);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (pr.kind === 'crescent') {
+    glow(ctx, cx, cy, 34, '#b48cff', 0.7);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(Math.sign(pr.vx) || 1, 1);
+    ctx.fillStyle = '#efe4ff';
+    ctx.beginPath();
+    ctx.arc(-4, 0, 16, -1.4, 1.4);
+    ctx.arc(-12, 0, 13, 1.2, -1.2, true);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
   if (pr.kind === 'orb') {
     glow(ctx, cx, cy, 26, '#ff8a3a', 0.8);
     ctx.fillStyle = '#ffe4c0';
@@ -587,11 +628,12 @@ export function drawLantern(ctx: Ctx, l: Lantern, x: number, y: number, t: numbe
 export function drawRelic(ctx: Ctx, r: Relic, x: number, y: number, t: number): void {
   const cx = x + r.w / 2;
   const cy = y + r.h / 2 + Math.sin(t * 2) * 5;
-  glow(ctx, cx, cy, 90, '#9fe8ff', 0.5 + Math.sin(t * 3) * 0.1);
+  const wings = r.ability === 'wings';
+  glow(ctx, cx, cy, 90, wings ? '#ffe2a8' : '#9fe8ff', 0.5 + Math.sin(t * 3) * 0.1);
   ctx.save();
   ctx.translate(cx, cy);
   ctx.globalCompositeOperation = 'lighter';
-  ctx.strokeStyle = 'rgba(190,240,255,0.25)';
+  ctx.strokeStyle = wings ? 'rgba(255,230,180,0.25)' : 'rgba(190,240,255,0.25)';
   ctx.lineWidth = 2;
   for (let i = 0; i < 8; i++) {
     const a = t * 0.6 + (i * Math.PI) / 4;
@@ -655,4 +697,223 @@ export function drawTablet(ctx: Ctx, tb: Tablet, x: number, y: number, near: boo
   }
   ctx.stroke();
   ctx.globalAlpha = 1;
+}
+
+export function drawSpitter(ctx: Ctx, e: Spitter, x: number, y: number, t: number): void {
+  const cx = x + e.w / 2;
+  const feet = y + e.h;
+  const hide = e.state === 'hide';
+  const swell = e.state === 'aim' ? Math.min(1, e.st / 0.5) : 0;
+  ctx.save();
+  ctx.translate(cx, feet);
+  ctx.scale(e.facing, 1);
+  ctx.fillStyle = fl(e.flash, '#2d3a2a');
+  ctx.beginPath();
+  ctx.ellipse(0, -2, 17, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (hide) {
+    // Shelled up: a spiky closed bud.
+    ctx.fillStyle = fl(e.flash, '#4a5a3c');
+    ctx.beginPath();
+    ctx.moveTo(-14, -2);
+    for (let i = 0; i <= 6; i++) {
+      const a = Math.PI + (i / 6) * Math.PI;
+      const r = i % 2 ? 17 : 12;
+      ctx.lineTo(Math.cos(a) * r, -4 + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = fl(e.flash, '#a8c48a');
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else {
+    const r = 13 + swell * 3 + Math.sin(t * 4) * 0.6;
+    ctx.fillStyle = fl(e.flash, '#55703f');
+    ellipse(ctx, 0, -12, r, r * 0.85);
+    ctx.strokeStyle = fl(e.flash, '#b9db8e');
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(0, -12, r, r * 0.85, 0, Math.PI * 1.05, Math.PI * 1.9);
+    ctx.stroke();
+    ctx.fillStyle = '#16200f';
+    ellipse(ctx, 8, -14, 5 + swell * 2, 3 + swell * 3);
+    ctx.fillStyle = '#c6ff86';
+    ellipse(ctx, 3, -20, 1.8, 1.8);
+  }
+  ctx.restore();
+  if (!hide) glow(ctx, cx + e.facing * 8, feet - 14, 14 + swell * 16, '#9be86a', 0.35 + swell * 0.35);
+}
+
+/** Vesper: a tall hooded duelist with a needle-thin blade and a long cape. */
+export function drawVesper(ctx: Ctx, e: Vesper, x: number, y: number, t: number): void {
+  const cx = x + e.w / 2;
+  const feet = y + e.h;
+  const s = e.state;
+  const c = (col: string): string => fl(e.flash, col);
+  if (e.phase === 2 && s !== 'dying') glow(ctx, cx, y + 20, 60, '#9a6cff', 0.25 + Math.sin(t * 6) * 0.08);
+  ctx.save();
+  ctx.translate(cx, feet);
+  ctx.scale(e.facing, 1);
+  if (s === 'dormant') ctx.translate(0, 2);
+  if (s === 'taunt' || s === 'intro') ctx.rotate(Math.sin(Math.min(1, e.st / 0.4) * Math.PI) * 0.25);
+  if (s === 'lunge' || s === 'riposte') ctx.rotate(0.28);
+  if (s === 'lungeWind' || s === 'feint') ctx.rotate(-0.12);
+  if (s === 'evade') ctx.rotate(-e.st * 14);
+  if (s === 'dying') {
+    ctx.globalAlpha = Math.max(0, 1 - e.st / 2.4);
+    ctx.rotate(Math.min(1, e.st) * 0.4);
+  }
+
+  // Cape streams behind with speed.
+  const stream = clamp(Math.abs(e.vx) / 700, 0, 1);
+  ctx.fillStyle = c('#2a1f3d');
+  ctx.beginPath();
+  ctx.moveTo(-4, -40);
+  ctx.quadraticCurveTo(-18 - stream * 18, -24, -16 - stream * 26, -2 + Math.sin(t * 8) * 2);
+  ctx.lineTo(4, -4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Legs
+  ctx.strokeStyle = c('#1d1629');
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  const stride = s === 'stance' ? Math.sin(t * 7) * 3 : s === 'lungeWind' ? 6 : 0;
+  ctx.beginPath();
+  ctx.moveTo(-3, -16);
+  ctx.lineTo(-6 - stride, 0);
+  ctx.moveTo(3, -16);
+  ctx.lineTo(7 + stride, 0);
+  ctx.stroke();
+
+  // Body
+  ctx.fillStyle = c('#3a2b55');
+  ctx.beginPath();
+  ctx.moveTo(-7, -40);
+  ctx.lineTo(8, -40);
+  ctx.lineTo(6, -14);
+  ctx.lineTo(-6, -14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = c('#8f78c4');
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+
+  // Hood and mask
+  ctx.fillStyle = c('#2a1f3d');
+  ctx.beginPath();
+  ctx.moveTo(-9, -40);
+  ctx.quadraticCurveTo(-8, -58, 4, -60);
+  ctx.quadraticCurveTo(12, -54, 10, -40);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = c('#e4dcf2');
+  ellipse(ctx, 4, -48, 5.5, 6.5);
+  ctx.fillStyle = s === 'dormant' ? '#3a2d50' : '#b48cff';
+  ctx.fillRect(3, -50, 6, 1.8);
+
+  // Blade
+  let ang = -0.15;
+  if (s === 'stance' || s === 'recover') ang = -0.35 + Math.sin(t * 3) * 0.05;
+  if (s === 'lungeWind' || s === 'feint') ang = 2.6;
+  if (s === 'lunge' || s === 'riposte') ang = 0;
+  if (s === 'parry') ang = -1.3;
+  if (s === 'combo' || s === 'comboWind') ang = -1.2 + (e.st / 0.24) * 2.2;
+  if (s === 'antiAir') ang = -1.5;
+  if (s === 'dive') ang = 1.5;
+  if (s === 'taunt') ang = 1.2;
+  ctx.save();
+  ctx.translate(6, -30);
+  ctx.rotate(ang);
+  ctx.strokeStyle = s === 'parry' ? '#ffffff' : c('#d9ccf2');
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(38, 0);
+  ctx.stroke();
+  ctx.fillStyle = c('#6a54a0');
+  ctx.fillRect(-3, -3, 4, 6);
+  ctx.restore();
+  ctx.restore();
+
+  if (s === 'parry') glow(ctx, cx + e.facing * 14, y + 14, 40, '#ffffff', 0.8);
+  if (s === 'lungeWind' || s === 'leapWind' || s === 'comboWind' || s === 'waveWind' || s === 'antiAir') {
+    glow(ctx, cx + e.facing * 4, y - 2, 18, '#c9a6ff', 0.5 + Math.sin(t * 40) * 0.2);
+  }
+}
+
+export function drawMerchant(ctx: Ctx, m: Merchant, x: number, y: number, t: number, near: boolean): void {
+  const cx = x + m.w / 2;
+  const feet = y + m.h;
+  const bob = Math.sin(t * 1.6) * 1.2;
+  glow(ctx, cx + 14, feet - 30, 70, '#ffc070', near ? 0.4 : 0.25);
+  ctx.save();
+  ctx.translate(cx, feet);
+  // Enormous pack
+  ctx.fillStyle = '#3b2d22';
+  ctx.beginPath();
+  ctx.roundRect(-20, -40 + bob, 24, 34, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#7a5e44';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = '#56412f';
+  ellipse(ctx, -12, -44 + bob, 9, 6);
+  // Round body and little feet
+  ctx.fillStyle = '#2a2430';
+  ellipse(ctx, 4, -14 + bob, 12, 12);
+  ctx.fillStyle = '#1a161e';
+  ctx.fillRect(-2, -3, 4, 3);
+  ctx.fillRect(7, -3, 4, 3);
+  // Face: a pale mask with sleepy eyes and a long nose
+  ctx.fillStyle = '#e8e0d0';
+  ellipse(ctx, 10, -24 + bob, 8, 7.5);
+  ctx.fillStyle = '#1a1612';
+  ctx.fillRect(9, -26 + bob, 4, 1.5);
+  ctx.fillRect(14, -26 + bob, 3, 1.5);
+  ctx.fillStyle = '#d6cbb5';
+  ctx.beginPath();
+  ctx.moveTo(15, -22 + bob);
+  ctx.lineTo(22, -20 + bob);
+  ctx.lineTo(15, -19 + bob);
+  ctx.fill();
+  // Hanging lamp
+  ctx.strokeStyle = '#1a161e';
+  ctx.beginPath();
+  ctx.moveTo(16, -12 + bob);
+  ctx.lineTo(18, -6 + bob);
+  ctx.stroke();
+  ctx.fillStyle = `rgba(255,200,110,${0.8 + Math.sin(t * 9) * 0.1})`;
+  ellipse(ctx, 18, -3 + bob, 3, 3.5);
+  ctx.restore();
+}
+
+export function drawHoard(ctx: Ctx, h: Hoard, x: number, y: number, t: number): void {
+  const cx = x + h.w / 2;
+  const base = y + h.h;
+  glow(ctx, cx, base - 14, 70, '#6fc8ff', 0.45 + Math.sin(t * 2) * 0.1);
+  const crystals: [number, number, number][] = [
+    [-14, 18, -0.3],
+    [-4, 30, -0.05],
+    [7, 24, 0.2],
+    [15, 14, 0.45],
+    [-20, 10, -0.6],
+  ];
+  for (const [dx, hgt, lean] of crystals) {
+    ctx.save();
+    ctx.translate(cx + dx, base);
+    ctx.rotate(lean);
+    ctx.fillStyle = '#5aa9de';
+    ctx.beginPath();
+    ctx.moveTo(-5, 0);
+    ctx.lineTo(-4, -hgt * 0.7);
+    ctx.lineTo(0, -hgt);
+    ctx.lineTo(4, -hgt * 0.7);
+    ctx.lineTo(5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#c8efff';
+    ctx.fillRect(-1, -hgt * 0.75, 2, hgt * 0.5);
+    ctx.restore();
+  }
 }

@@ -2,8 +2,10 @@ import { clamp, lerp } from '../core/math';
 import { TILE, VIEW_H, VIEW_W, WORLD_VIEW_H, WORLD_VIEW_W, ZOOM } from '../core/tuning';
 import { Duskmoth } from '../entities/duskmoth';
 import { Ironshell } from '../entities/ironshell';
-import { Echo, Lantern, Relic, Shard, Tablet } from '../entities/pickups';
+import { Echo, Hoard, Lantern, Merchant, Relic, Shard, Tablet } from '../entities/pickups';
 import { Skitter } from '../entities/skitter';
+import { Spitter } from '../entities/spitter';
+import { Vesper } from '../entities/vesper';
 import { Warden } from '../entities/warden';
 import type { Game } from '../game';
 import { Tile, type TileMap } from '../physics/tilemap';
@@ -15,6 +17,8 @@ import { Background } from './background';
 import {
   drawDuskmoth,
   drawEcho,
+  drawHoard,
+  drawMerchant,
   drawIronshell,
   drawLantern,
   drawPlayer,
@@ -23,7 +27,9 @@ import {
   drawShard,
   drawSkitter,
   drawSlash,
+  drawSpitter,
   drawTablet,
+  drawVesper,
   drawWarden,
   glow,
 } from './sprites';
@@ -119,6 +125,7 @@ export class Renderer {
     this.terrain.draw(ctx, m, w.room.def.id, th, dpp, camX, camY, WORLD_VIEW_W, WORLD_VIEW_H);
     this.drawLiquid(ctx, m, camX, camY, t);
     this.drawGates(ctx, m, w.gateAnim);
+    if (!m.sealOpen) this.drawSeals(ctx, m, t);
 
     for (const pk of w.pickups) {
       const x = ix(pk, alpha);
@@ -128,6 +135,8 @@ export class Renderer {
       else if (pk instanceof Relic) drawRelic(ctx, pk, x, y, t);
       else if (pk instanceof Echo) drawEcho(ctx, pk, x, y, t);
       else if (pk instanceof Tablet) drawTablet(ctx, pk, x, y, w.nearTablet === pk, th.accent);
+      else if (pk instanceof Merchant) drawMerchant(ctx, pk, x, y, t, w.nearMerchant === pk);
+      else if (pk instanceof Hoard) drawHoard(ctx, pk, x, y, t);
     }
 
     for (const e of w.enemies) {
@@ -137,6 +146,8 @@ export class Renderer {
       else if (e instanceof Duskmoth) drawDuskmoth(ctx, e, x, y);
       else if (e instanceof Ironshell) drawIronshell(ctx, e, x, y);
       else if (e instanceof Warden) drawWarden(ctx, e, x, y, t);
+      else if (e instanceof Spitter) drawSpitter(ctx, e, x, y, t);
+      else if (e instanceof Vesper) drawVesper(ctx, e, x, y, t);
     }
 
     for (const pr of w.projectiles) drawProjectile(ctx, pr, ix(pr, alpha), iy(pr, alpha), m, t);
@@ -151,6 +162,7 @@ export class Renderer {
 
     if (w.nearTablet) worldLabel(ctx, w.nearTablet.text, w.nearTablet.cx, w.nearTablet.y - 14);
     if (w.nearLantern && p.state === 'normal') worldLabel(ctx, '▲  Rest', w.nearLantern.cx, w.nearLantern.y - 16);
+    if (w.nearMerchant && p.state === 'normal' && !w.shop) worldLabel(ctx, '▲  Trade', w.nearMerchant.cx, w.nearMerchant.y - 10);
     if (this.hitboxes) this.drawHitboxes(ctx, w);
     ctx.restore();
 
@@ -172,6 +184,7 @@ export class Renderer {
       ctx.fillStyle = `rgba(0,0,0,${clamp(w.fade, 0, 1)})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+    this.hud.shop(ctx, w, t);
     this.hud.modal(ctx, w, t);
   }
 
@@ -243,6 +256,27 @@ export class Renderer {
         ctx.stroke();
       }
       ctx.fillRect(tx * TILE + 2, y0 + len * 0.3, TILE - 4, 4);
+    }
+  }
+
+  private drawSeals(ctx: CanvasRenderingContext2D, m: TileMap, t: number): void {
+    for (let ty = 0; ty < m.h; ty++) {
+      for (let tx = 0; tx < m.w; tx++) {
+        if (m.get(tx, ty) !== Tile.Seal) continue;
+        const x = tx * TILE;
+        const y = ty * TILE;
+        ctx.fillStyle = '#1a1420';
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.strokeStyle = `rgba(255,150,90,${0.45 + Math.sin(t * 2 + ty) * 0.2})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 16, y + 4);
+        ctx.lineTo(x + 26, y + 16);
+        ctx.lineTo(x + 16, y + 28);
+        ctx.lineTo(x + 6, y + 16);
+        ctx.closePath();
+        ctx.stroke();
+      }
     }
   }
 

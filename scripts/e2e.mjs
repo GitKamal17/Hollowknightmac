@@ -226,6 +226,116 @@ try {
   }
   await wait(1200);
   await shot('14-boss-phase2');
+
+  // ---- The second area ----------------------------------------------------
+  console.log('The way east (debug: mark the Warden defeated)');
+  await page.evaluate(() => {
+    const w = window.__gloam.world;
+    w.save.bossDefeated = true;
+    w.save.shards = 200;
+    w.player.hp = w.player.maxHp;
+  });
+  await warp('descent', '8');
+  await wait(900);
+  await page.keyboard.down('ArrowRight');
+  await wait(700);
+  await page.keyboard.up('ArrowRight');
+  await shot('15-descent');
+
+  console.log('Lowmarket: buy from the Peddler');
+  await warp('market', '9');
+  await wait(400);
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => window.__gloam.world.nearMerchant !== null, null, { timeout: 6000 });
+  await page.keyboard.up('ArrowRight');
+  await wait(150);
+  await tap('ArrowUp');
+  await wait(400);
+  check(await page.evaluate(() => window.__gloam.world.shop !== null), 'Up at the merchant opens the shop');
+  await tap('z');
+  await wait(300);
+  const bought = await page.evaluate(() => ({ mask: window.__gloam.world.save.upgrades.mask, shards: window.__gloam.world.save.shards, maxHp: window.__gloam.world.player.maxHp }));
+  check(bought.mask === 1 && bought.shards === 140 && bought.maxHp === 6, `buying a Mask Shard costs 60 and adds a mask (${JSON.stringify(bought)})`);
+  await tap('ArrowDown');
+  await wait(200);
+  await shot('16-shop');
+  await tap('Escape');
+  await wait(200);
+  check(await page.evaluate(() => window.__gloam.world.shop === null), 'Esc closes the shop');
+
+  console.log('Needle Spires');
+  await warp('spires', '0');
+  await wait(1200);
+  await page.keyboard.down('ArrowRight');
+  await wait(300);
+  await tap('z', 250);
+  await wait(250);
+  await page.keyboard.up('ArrowRight');
+  await shot('17-spires');
+
+  console.log('Featherfall Nest: take the Twin Feather');
+  await warp('nest', 'x');
+  await wait(300);
+  await page.evaluate(() => { window.__gloam.world.enemies = []; });
+  await page.keyboard.down('ArrowRight');
+  for (let k = 0; k < 40 && !(await page.evaluate(() => window.__gloam.world.modal !== null)); k++) {
+    await tap('z', 200);
+    await wait(150);
+  }
+  await page.keyboard.up('ArrowRight');
+  await wait(800);
+  check(await page.evaluate(() => window.__gloam.world.save.wings), 'the nest relic grants the double jump');
+  await shot('18-wings');
+  await tap('Enter');
+  await wait(300);
+
+  console.log("Hoarder's Hollow");
+  await warp('cache', 'y');
+  await wait(1200);
+  await shot('19-cache');
+
+  console.log('The Long Ascent: double jump');
+  await warp('heights', 'w');
+  await wait(1300);
+  const y0 = await page.evaluate(() => window.__gloam.world.player.y);
+  await page.keyboard.down('z');
+  await page.waitForFunction(() => { const p = window.__gloam.world.player; return !p.grounded && p.vy > -80; }, null, { polling: 'raf' });
+  await page.keyboard.up('z');
+  await tap('z', 200);
+  await wait(150);
+  const rise = await page.evaluate((y0) => y0 - window.__gloam.world.player.y, y0);
+  check(rise > 190, `jump + double jump rises well above a single jump (${Math.round(rise)}px)`);
+  await shot('20-heights');
+
+  console.log("Vesper's Court");
+  await warp('duel', 'z');
+  await wait(300);
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => window.__gloam.world.bossActive, null, { timeout: 5000 });
+  await page.keyboard.up('ArrowRight');
+  await wait(1400);
+  await shot('21-vesper-intro');
+  const duelStart = Date.now();
+  let vshots = 0;
+  while (Date.now() - duelStart < 8000) {
+    await page.evaluate(() => { const p = window.__gloam.world.player; if (p.hp < 3) p.hp = p.maxHp; });
+    const toward = await page.evaluate(() => {
+      const w = window.__gloam.world;
+      if (!w.boss) return 0;
+      const d = w.boss.cx - w.player.cx;
+      return Math.abs(d) > 50 ? Math.sign(d) : 0;
+    });
+    const key = toward > 0 ? 'ArrowRight' : 'ArrowLeft';
+    if (toward !== 0) await page.keyboard.down(key);
+    await tap('x', 40);
+    await tap('z', 120);
+    if (toward !== 0) await page.keyboard.up(key);
+    if ((Date.now() - duelStart > 2500 && vshots === 0) || (Date.now() - duelStart > 5500 && vshots === 1)) {
+      await shot(`22-vesper-fight-${++vshots}`);
+    }
+  }
+  const vesper = await page.evaluate(() => ({ hp: window.__gloam.world.boss?.hp ?? 0, max: window.__gloam.world.boss?.maxHp ?? 0 }));
+  check(vesper.hp < vesper.max, `Vesper takes damage (hp ${vesper.hp}/${vesper.max})`);
 } catch (e) {
   failed = true;
   console.error(e);

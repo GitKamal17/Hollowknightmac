@@ -1,5 +1,6 @@
 import { clamp } from '../core/math';
 import { PLAYER, VIEW_H, VIEW_W } from '../core/tuning';
+import { nextCost, SHOP } from '../world/shop';
 import type { World } from '../world/world';
 import { ornament, SANS, SERIF, spaced, wrap } from './text';
 
@@ -38,7 +39,7 @@ export class Hud {
     ctx.textBaseline = 'middle';
     ctx.fillText(String(w.save.shards), 131, 85);
 
-    if (w.bossActive && w.boss) this.bossBar(ctx, w.boss.hp / w.boss.maxHp);
+    if (w.bossActive && w.boss) this.bossBar(ctx, w.boss.hp / w.boss.maxHp, w.boss.title);
     else this.shownBossHp = 1;
     if (w.banner) this.banner(ctx, w);
     if (p.hp === 1 && p.alive) {
@@ -134,7 +135,7 @@ export class Hud {
     ctx.restore();
   }
 
-  private bossBar(ctx: Ctx, ratio: number): void {
+  private bossBar(ctx: Ctx, ratio: number, name: string): void {
     this.shownBossHp = Math.max(ratio, this.shownBossHp - 0.004);
     const w = 460;
     const x = (VIEW_W - w) / 2;
@@ -152,7 +153,7 @@ export class Hud {
     ctx.fillStyle = '#e8d6c8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('Warden of the Well', VIEW_W / 2, y - 10);
+    ctx.fillText(name, VIEW_W / 2, y - 10);
   }
 
   private banner(ctx: Ctx, w: World): void {
@@ -173,6 +174,69 @@ export class Hud {
       ctx.font = `46px ${SERIF}`;
       spaced(ctx, b.title.toUpperCase(), VIEW_W / 2, 168, 7);
       ornament(ctx, VIEW_W / 2, 190, 420, '#e8c6a8', 0.9);
+    }
+    ctx.restore();
+  }
+
+  shop(ctx: Ctx, w: World, t: number): void {
+    const s = w.shop;
+    if (!s) return;
+    const a = clamp(s.t / 0.2, 0, 1);
+    const pw = 560;
+    const ph = 92 + SHOP.length * 62;
+    const x = (VIEW_W - pw) / 2;
+    const y = (VIEW_H - ph) / 2;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(3,4,8,0.55)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.fillStyle = 'rgba(14,11,8,0.94)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, pw, ph, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,210,150,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#f5e6cc';
+    ctx.font = `28px ${SERIF}`;
+    spaced(ctx, 'THE PEDDLER', VIEW_W / 2, y + 42, 5);
+    ctx.font = `600 17px ${SANS}`;
+    ctx.fillStyle = '#d8ecff';
+    ctx.textAlign = 'right';
+    ctx.fillText(`\u25C6 ${w.save.shards}`, x + pw - 24, y + 40);
+    SHOP.forEach((item, i) => {
+      const ry = y + 70 + i * 62;
+      const on = i === s.sel;
+      const cost = nextCost(w.save, item);
+      const owned = w.save.upgrades[item.id];
+      if (on) {
+        ctx.fillStyle = 'rgba(255,210,150,0.10)';
+        ctx.fillRect(x + 12, ry - 4, pw - 24, 56);
+      }
+      ctx.textAlign = 'left';
+      ctx.font = `${on ? 600 : 500} 18px ${SANS}`;
+      ctx.fillStyle = cost === null ? '#7d7466' : on ? '#ffffff' : '#d9cfbf';
+      const lvl = item.costs.length > 1 ? `  ${owned}/${item.costs.length}` : '';
+      ctx.fillText(`${on ? '\u25B8 ' : '  '}${item.name}${lvl}`, x + 24, ry + 20);
+      ctx.font = `14px ${SANS}`;
+      ctx.fillStyle = '#a89c8a';
+      ctx.fillText(item.desc, x + 44, ry + 42);
+      ctx.textAlign = 'right';
+      ctx.font = `600 17px ${SANS}`;
+      ctx.fillStyle = cost === null ? '#7d7466' : w.save.shards >= cost ? '#8fd8ff' : '#c06a5a';
+      ctx.fillText(cost === null ? 'sold out' : `\u25C6 ${cost}`, x + pw - 24, ry + 20);
+    });
+    ctx.textAlign = 'center';
+    ctx.font = `14px ${SANS}`;
+    if (s.msgT > 0) {
+      ctx.fillStyle = '#ffd38a';
+      ctx.fillText(s.msg, VIEW_W / 2, y + ph - 16);
+    } else {
+      ctx.fillStyle = '#7d7466';
+      ctx.globalAlpha = a * (0.7 + Math.sin(t * 3) * 0.2);
+      ctx.fillText('Up / Down to choose  \u00B7  Z to buy  \u00B7  X or Esc to leave', VIEW_W / 2, y + ph - 16);
     }
     ctx.restore();
   }
