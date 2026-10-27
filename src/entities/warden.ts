@@ -23,7 +23,7 @@ export type WardenState =
 type Move = 'leap' | 'charge' | 'burst' | 'rain';
 
 const GRAVITY = 1800;
-export const WARDEN_HP = 30;
+export const WARDEN_HP = 40;
 
 /**
  * Warden of the Well. Three telegraphed attacks in phase one; at half health it
@@ -33,7 +33,9 @@ export class Warden extends Enemy {
   readonly kind = 'warden';
   state: WardenState = 'dormant';
   phase: 1 | 2 = 1;
-  private history: Move[] = [];
+  /** Shuffle bag: every move appears once per cycle, so the whole moveset always shows up. */
+  private bag: Move[] = [];
+  private lastMove: Move | null = null;
   private recoverTime = 0.5;
   private airborne = false;
   private roared = false;
@@ -77,6 +79,7 @@ export class Warden extends Enemy {
       w.camera.addTrauma(0.6);
     } else if (this.phase === 1 && this.hp <= this.maxHp / 2) {
       this.phase = 2;
+      this.bag = ['rain']; // open phase two by showing off the new move
       this.set('enrage');
       this.roared = false;
       this.vx = 0;
@@ -213,18 +216,18 @@ export class Warden extends Enemy {
   }
 
   private choose(w: World): void {
-    const moves: Move[] = this.fast ? ['leap', 'charge', 'burst', 'rain'] : ['leap', 'charge', 'burst'];
-    const [a, b] = this.history;
-    let options = moves.filter((m) => !(m === a && m === b));
-    if (a) options = options.filter((m) => m !== a || options.length === 1);
-    const dist = Math.abs(w.player.cx - this.cx);
-    const weighted: Move[] = [];
-    for (const m of options) {
-      const weight = m === 'burst' && dist < 220 ? 3 : (m === 'leap' || m === 'charge') && dist > 300 ? 3 : 2;
-      for (let i = 0; i < weight; i++) weighted.push(m);
+    if (this.bag.length === 0) {
+      const moves: Move[] = this.fast ? ['leap', 'charge', 'burst', 'rain'] : ['leap', 'charge', 'burst'];
+      for (let i = moves.length - 1; i > 0; i--) {
+        const j = Math.floor(w.rng.next() * (i + 1));
+        [moves[i], moves[j]] = [moves[j], moves[i]];
+      }
+      // Never the same move twice in a row across a refill.
+      if (moves[0] === this.lastMove) moves.push(moves.shift()!);
+      this.bag = moves;
     }
-    const move = w.rng.pick(weighted);
-    this.history = [move, ...this.history].slice(0, 2);
+    const move = this.bag.shift()!;
+    this.lastMove = move;
     if (move === 'leap') this.set('leapWind');
     else if (move === 'charge') this.set('chargeWind');
     else if (move === 'burst') this.set('burstWind');

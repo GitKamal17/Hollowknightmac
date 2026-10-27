@@ -202,8 +202,8 @@ try {
       await shot(`12-boss-fight-${++shots}`);
     }
   }
-  const bossHp = await page.evaluate(() => window.__gloam.world.boss?.hp ?? 0);
-  check(bossHp < 30, `the boss takes damage from strikes (hp now ${bossHp})`);
+  const boss = await page.evaluate(() => ({ hp: window.__gloam.world.boss?.hp ?? 0, max: window.__gloam.world.boss?.maxHp ?? 0 }));
+  check(boss.hp < boss.max, `the boss takes damage from strikes (hp ${boss.hp}/${boss.max})`);
 
   console.log('Pause menu');
   await tap('Escape');
@@ -214,7 +214,7 @@ try {
   console.log('Boss, phase two (debug: drop its health)');
   await page.evaluate(() => {
     const w = window.__gloam.world;
-    if (w.boss && w.boss.phase === 1) w.boss.hp = 16;
+    if (w.boss && w.boss.phase === 1) w.boss.hp = w.boss.maxHp / 2 + 1;
     w.player.hp = w.player.maxHp;
   });
   await page.keyboard.down('x');
