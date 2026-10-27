@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeInput, type Action } from '../src/core/input';
 import { TILE } from '../src/core/tuning';
-import { WARDEN_HP, type WardenState } from '../src/entities/warden';
+import { Warden, WARDEN_HP, type WardenState } from '../src/entities/warden';
 import { loadSave, memoryStorage, newSave } from '../src/world/save';
 import { World } from '../src/world/world';
 
@@ -28,7 +28,7 @@ describe('Warden of the Well', () => {
         // God mode: this tests the boss, not the bot's dodging.
         p.invuln = 10;
         p.hp = p.maxHp;
-        const b = w.boss;
+        const b = w.boss instanceof Warden ? w.boss : null;
         if (b) {
           seen.add(b.state);
           if (b.phase === 2 && phase2At < 0) phase2At = b.hp;

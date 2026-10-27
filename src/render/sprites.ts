@@ -172,7 +172,7 @@ export function drawPlayer(ctx: Ctx, p: Player, x: number, y: number, t: number)
   ctx.restore();
 
   if (healing) {
-    const k = p.healTimer / PLAYER.healTime;
+    const k = p.healTimer / p.healTime;
     glow(ctx, cx, y + 6, 26 + k * 30, '#ffffff', 0.25 + k * 0.4);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

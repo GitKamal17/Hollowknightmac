@@ -48,8 +48,10 @@ describe('walking through doors', () => {
     it(`${c.room} door ${c.door} leads somewhere safe`, () => {
       const save = newSave();
       save.dash = true;
+      save.bossDefeated = true; // opens the seal east of the Warden
       const w = new World({ save });
       w.warp(c.room, c.door);
+      w.enemies = []; // test the doors, not the fights
       const door = w.room.doors.find((d) => d.id === c.door)!;
       const p = w.player;
       const target = door.target;
@@ -70,7 +72,10 @@ describe('walking through doors', () => {
       for (let i = 0; i < 90 && w.room.def.id === c.room; i++) w.update(makeInput(held));
       expect(w.room.def.id).toBe(target);
       // Let the arrival play out with no input: the player must end up standing, unhurt, in the new room.
-      for (let i = 0; i < 180; i++) w.update(makeInput());
+      for (let i = 0; i < 180; i++) {
+        w.enemies = [];
+        w.update(makeInput());
+      }
       expect(w.room.def.id).toBe(target);
       expect(p.hp).toBe(p.maxHp);
       expect(p.grounded).toBe(true);

@@ -6,7 +6,7 @@ import { Entity } from './entity';
 import type { Attack } from './player';
 
 export type StrikeResult = 'hit' | 'blocked' | 'none';
-export type EnemyKind = 'skitter' | 'duskmoth' | 'ironshell' | 'warden';
+export type EnemyKind = 'skitter' | 'duskmoth' | 'ironshell' | 'spitter' | 'warden' | 'vesper';
 
 export abstract class Enemy extends Entity {
   abstract readonly kind: EnemyKind;
@@ -35,7 +35,7 @@ export abstract class Enemy extends Entity {
   strike(w: World, atk: Attack): StrikeResult {
     const dirX = atk.dir === 'side' ? atk.facing : 0;
     const dirY = atk.dir === 'up' ? -1 : atk.dir === 'down' ? 1 : 0;
-    this.damage(w, 1, dirX, dirY);
+    this.damage(w, w.player.damage, dirX, dirY);
     return 'hit';
   }
 

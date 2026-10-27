@@ -53,6 +53,8 @@ export const PLAYER = {
   healCost: 33,
   healTime: 0.95,
   doorPopVel: 880,
+  doubleJumpVel: 680,
+  parryStun: 0.35,
 } as const;
 
 // Hitstop durations, in simulation frames.

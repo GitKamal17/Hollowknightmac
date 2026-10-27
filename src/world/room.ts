@@ -51,9 +51,12 @@ const TILE_CHARS: Record<string, TileId> = {
   '^': Tile.Spike,
   '~': Tile.Liquid,
   G: Tile.Gate,
+  S: Tile.Seal,
 };
 
-const ENTITY_CHARS = new Set(['P', 'T', 'L', 'c', 'f', 's', 'B', 'D']);
+const DOOR_CHARS = /^[0-9w-z]$/;
+
+const ENTITY_CHARS = new Set(['P', 'T', 'L', 'c', 'f', 's', 'p', 'B', 'V', 'D', 'W', 'M', 'Q']);
 
 export function parseRoom(def: RoomDef): Room {
   const h = def.map.length;
@@ -70,7 +73,7 @@ export function parseRoom(def: RoomDef): Room {
       const ch = row[tx];
       const i = ty * w + tx;
       if (ch in TILE_CHARS) tiles[i] = TILE_CHARS[ch];
-      else if (ch >= '0' && ch <= '9') doorCells[i] = ch.charCodeAt(0);
+      else if (DOOR_CHARS.test(ch)) doorCells[i] = ch.charCodeAt(0);
       else if (ENTITY_CHARS.has(ch)) {
         const s: Spawn = { kind: ch, tx, ty, x: tx * TILE + TILE / 2, y: (ty + 1) * TILE };
         if (ch === 'T') s.text = def.texts?.[textIndex++] ?? '';

@@ -3,7 +3,7 @@ import { moveBody } from '../physics/collide';
 import type { World } from '../world/world';
 import { Entity } from './entity';
 
-export type PickupKind = 'shard' | 'lantern' | 'relic' | 'echo' | 'tablet';
+export type PickupKind = 'shard' | 'lantern' | 'relic' | 'echo' | 'tablet' | 'merchant' | 'hoard';
 
 export abstract class Pickup extends Entity {
   abstract readonly kind: PickupKind;
@@ -60,7 +60,11 @@ export class Lantern extends Pickup {
 
 export class Relic extends Pickup {
   readonly kind = 'relic';
-  constructor(cx: number, bottom: number) {
+  constructor(
+    cx: number,
+    bottom: number,
+    readonly ability: 'dash' | 'wings' = 'dash',
+  ) {
     super();
     this.w = 28;
     this.h = 34;
@@ -95,6 +99,29 @@ export class Tablet extends Pickup {
     super();
     this.w = 30;
     this.h = 40;
+    this.placeAt(cx, bottom);
+  }
+}
+
+/** Sells upgrades for shards. */
+export class Merchant extends Pickup {
+  readonly kind = 'merchant';
+  constructor(cx: number, bottom: number) {
+    super();
+    this.w = 34;
+    this.h = 44;
+    this.placeAt(cx, bottom);
+  }
+}
+
+/** A secret pile of shards, emptied once. */
+export class Hoard extends Pickup {
+  readonly kind = 'hoard';
+  readonly amount = 60;
+  constructor(cx: number, bottom: number) {
+    super();
+    this.w = 40;
+    this.h = 34;
     this.placeAt(cx, bottom);
   }
 }

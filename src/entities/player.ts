@@ -6,6 +6,8 @@ import type { TileMap } from '../physics/tilemap';
 import { Entity } from './entity';
 
 export type PlayerState = 'normal' | 'dash' | 'hurt' | 'heal' | 'rest' | 'dead' | 'hazard' | 'frozen';
+
+export type PlayerEvent = 'jump' | 'walljump' | 'doublejump' | 'land' | 'dash' | 'healed';
 export type AttackDir = 'side' | 'up' | 'down';
 
 export interface Attack {
@@ -22,7 +24,7 @@ export interface Attack {
 export interface PlayerHost {
   map: TileMap;
   sfx(name: string): void;
-  onPlayerEvent(kind: 'jump' | 'walljump' | 'land' | 'dash' | 'healed', strength?: number): void;
+  onPlayerEvent(kind: PlayerEvent, strength?: number): void;
 }
 
 export class Player extends Entity {
@@ -60,6 +62,12 @@ export class Player extends Entity {
   recoilVx = 0;
 
   healTimer = 0;
+  /** Stats that upgrades change (see world/shop.ts). */
+  damage = 1;
+  healTime: number = P.healTime;
+  soulPerHit: number = P.soulPerHit;
+  wingsUnlocked = false;
+  airJumps = 0;
   lastSafe = { x: 0, y: 0 };
 
   /** Animation bookkeeping (read by the renderer only). */
@@ -183,6 +191,7 @@ export class Player extends Entity {
       this.inputLock <= 0;
     if (cling && !this.wallSliding) {
       this.airDash = true;
+      this.airJumps = 1;
       host.sfx('cling');
     }
     this.wallSliding = cling;
@@ -196,6 +205,7 @@ export class Player extends Entity {
     if (this.jumpBuffer > 0) {
       if (this.grounded || this.coyote > 0) this.jump(host);
       else if (this.wallSliding || this.wallDir !== 0 || this.wallCoyote > 0) this.wallJump(host);
+      else if (this.wingsUnlocked && this.airJumps > 0) this.doubleJump(host);
     }
     if (this.jumping && !inp.held.jump && this.vy < -P.jumpCutVel) {
       this.vy = -P.jumpCutVel;
@@ -240,6 +250,15 @@ export class Player extends Entity {
     this.grounded = false;
     host.sfx('jump');
     host.onPlayerEvent('jump');
+  }
+
+  private doubleJump(host: PlayerHost): void {
+    this.vy = -P.doubleJumpVel;
+    this.airJumps--;
+    this.jumping = true;
+    this.jumpBuffer = 0;
+    host.sfx('doublejump');
+    host.onPlayerEvent('doublejump');
   }
 
   private wallJump(host: PlayerHost): void {
@@ -300,7 +319,7 @@ export class Player extends Entity {
       this.healTimer = 0;
     } else {
       this.healTimer += DT;
-      if (this.healTimer >= P.healTime) {
+      if (this.healTimer >= this.healTime) {
         this.healTimer = 0;
         this.soul -= P.healCost;
         this.hp = Math.min(this.maxHp, this.hp + 1);
@@ -328,6 +347,7 @@ export class Player extends Entity {
     if (this.grounded) {
       this.coyote = P.coyote;
       this.airDash = true;
+      this.airJumps = 1;
       this.wallSliding = false;
       if (!was) {
         this.landSquash = Math.min(0.12, impact / 5000);
@@ -364,6 +384,7 @@ export class Player extends Entity {
     this.vy = -P.pogoVel;
     this.jumping = false;
     this.airDash = true;
+    this.airJumps = 1;
     this.coyote = 0;
     if (this.attack) this.attack.pogoed = true;
   }
@@ -373,7 +394,18 @@ export class Player extends Entity {
     this.recoilVx = -facing * speed;
   }
 
-  gainSoul(n: number = P.soulPerHit): void {
+  /** Knocked back by a parry: no damage, but briefly helpless. */
+  parried(fromX: number): void {
+    if (this.state !== 'normal' && this.state !== 'heal') return;
+    this.attack = null;
+    this.state = 'hurt';
+    this.stateTimer = P.parryStun;
+    this.vx = (Math.sign(this.cx - fromX) || -this.facing) * 340;
+    this.vy = -260;
+    this.jumping = false;
+  }
+
+  gainSoul(n: number = this.soulPerHit): void {
     this.soul = Math.min(P.soulMax, this.soul + n);
   }
 

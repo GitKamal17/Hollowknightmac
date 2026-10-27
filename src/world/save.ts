@@ -1,3 +1,6 @@
+export type UpgradeId = 'mask' | 'blade' | 'focus' | 'vessel';
+export const UPGRADE_IDS: UpgradeId[] = ['mask', 'blade', 'focus', 'vessel'];
+
 export interface SaveData {
   v: 1;
   /** Lantern the player last rested at, or null for the room start. */
@@ -6,6 +9,12 @@ export interface SaveData {
   bossDefeated: boolean;
   shards: number;
   echo: { room: string; x: number; y: number; amount: number } | null;
+  wings: boolean;
+  duelDefeated: boolean;
+  /** The secret shard hoard has been emptied. */
+  cache: boolean;
+  /** Levels bought from the merchant. */
+  upgrades: Record<UpgradeId, number>;
 }
 
 /** The subset of the Web Storage API we use, so tests can pass a fake. */
@@ -18,7 +27,18 @@ export interface KV {
 export const SAVE_KEY = 'gloamwell.save.v1';
 
 export function newSave(): SaveData {
-  return { v: 1, bench: null, dash: false, bossDefeated: false, shards: 0, echo: null };
+  return {
+    v: 1,
+    bench: null,
+    dash: false,
+    bossDefeated: false,
+    shards: 0,
+    echo: null,
+    wings: false,
+    duelDefeated: false,
+    cache: false,
+    upgrades: { mask: 0, blade: 0, focus: 0, vessel: 0 },
+  };
 }
 
 const isNum = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
@@ -30,6 +50,11 @@ function validate(raw: unknown): SaveData | null {
   const s = newSave();
   s.dash = r.dash === true;
   s.bossDefeated = r.bossDefeated === true;
+  s.wings = r.wings === true;
+  s.duelDefeated = r.duelDefeated === true;
+  s.cache = r.cache === true;
+  const u = (r.upgrades ?? {}) as Record<string, unknown>;
+  for (const id of UPGRADE_IDS) s.upgrades[id] = isNum(u[id]) ? Math.max(0, Math.min(2, Math.floor(u[id]))) : 0;
   s.shards = isNum(r.shards) ? Math.max(0, Math.floor(r.shards)) : 0;
   const b = r.bench as Record<string, unknown> | null;
   if (b && typeof b.room === 'string' && isNum(b.x) && isNum(b.y)) s.bench = { room: b.room, x: b.x, y: b.y };

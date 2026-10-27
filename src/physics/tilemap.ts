@@ -7,6 +7,8 @@ export const Tile = {
   Spike: 3,
   Liquid: 4,
   Gate: 5,
+  /** Solid until opened for good (the way east, after the Warden). */
+  Seal: 6,
 } as const;
 export type TileId = (typeof Tile)[keyof typeof Tile];
 
@@ -18,6 +20,7 @@ export type Hazard = 'spike' | 'liquid';
  */
 export class TileMap {
   gatesClosed = false;
+  sealOpen = false;
   readonly pw: number;
   readonly ph: number;
 
@@ -41,7 +44,7 @@ export class TileMap {
 
   isSolid(tx: number, ty: number): boolean {
     const t = this.get(tx, ty);
-    return t === Tile.Solid || t === Tile.Slick || (t === Tile.Gate && this.gatesClosed);
+    return t === Tile.Solid || t === Tile.Slick || (t === Tile.Gate && this.gatesClosed) || (t === Tile.Seal && !this.sealOpen);
   }
 
   isClingable(tx: number, ty: number): boolean {

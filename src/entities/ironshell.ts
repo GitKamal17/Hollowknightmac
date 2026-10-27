@@ -7,8 +7,10 @@ import type { Attack } from './player';
 type ShellState = 'patrol' | 'guard' | 'wind' | 'lunge' | 'recover' | 'stun';
 
 /**
- * Shield bearer. Its shield faces forward and blocks strikes from the front.
- * Hit it from behind (it is slow to turn) or from above with a downward strike.
+ * Shield bearer, patient and stubborn. Its shield blocks strikes from the front;
+ * hit it from behind (it is slow to turn) or from above. It learns: every hit
+ * in the back makes it turn faster. Crowd it and it bashes you; hammer its
+ * shield and it may answer with a quick counter-bash.
  */
 export class Ironshell extends Enemy {
   readonly kind = 'ironshell';
@@ -16,6 +18,8 @@ export class Ironshell extends Enemy {
   turnTimer = 0;
   private lungeCd = 0;
   private lostTimer = 0;
+  private turnDelay = 0.45;
+  private crowded = 0;
   /** Brief shield wobble after a block, for the renderer. */
   blockFlash = 0;
 
@@ -50,7 +54,7 @@ export class Ironshell extends Enemy {
         const toward = dx >= 0 ? 1 : -1;
         if (toward !== this.facing) {
           this.turnTimer += DT;
-          if (this.turnTimer >= 0.45) {
+          if (this.turnTimer >= this.turnDelay) {
             this.facing = toward;
             this.turnTimer = 0;
           }
@@ -61,7 +65,12 @@ export class Ironshell extends Enemy {
           this.lostTimer += DT;
           if (this.lostTimer > 2) this.set('patrol');
         } else this.lostTimer = 0;
-        if (Math.abs(dx) < 150 && toward === this.facing && this.lungeCd <= 0) this.set('wind');
+        // Crowding it in front of its shield earns a bash, cooldown or not.
+        this.crowded = Math.abs(dx) < 100 && toward === this.facing ? this.crowded + DT : 0;
+        if ((Math.abs(dx) < 150 && toward === this.facing && this.lungeCd <= 0) || this.crowded > 0.7) {
+          this.crowded = 0;
+          this.set('wind');
+        }
         break;
       }
       case 'wind':
@@ -100,8 +109,14 @@ export class Ironshell extends Enemy {
     if (atk.dir === 'side' && atk.facing === -this.facing) {
       this.blockFlash = 0.15;
       this.vx = atk.facing * 120;
+      if (this.state === 'guard' && w.rng.next() < 0.4) {
+        // Counter-bash with a shortened tell.
+        this.set('wind');
+        this.st = 0.2;
+      }
       return 'blocked';
     }
+    if (atk.dir === 'side' && atk.facing === this.facing) this.turnDelay = Math.max(0.15, this.turnDelay - 0.1);
     return super.strike(w, atk);
   }
 

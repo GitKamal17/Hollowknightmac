@@ -42,7 +42,7 @@ export class Game {
         this.updateTitle(inp);
         return;
       case 'play':
-        if (inp.pressed.pause && !this.world!.modal) {
+        if (inp.pressed.pause && !this.world!.modal && !this.world!.shop) {
           this.scene = 'pause';
           this.pauseMenu = 0;
           this.audio.play('pause');

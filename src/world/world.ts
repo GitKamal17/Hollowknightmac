@@ -6,16 +6,19 @@ import { DT, HITSTOP, PLAYER, TILE } from '../core/tuning';
 import type { Enemy } from '../entities/enemy';
 import { Duskmoth } from '../entities/duskmoth';
 import { Ironshell } from '../entities/ironshell';
-import { Echo, Lantern, Relic, Shard, Tablet, type Pickup } from '../entities/pickups';
-import { Player, type PlayerHost } from '../entities/player';
+import { Echo, Hoard, Lantern, Merchant, Relic, Shard, Tablet, type Pickup } from '../entities/pickups';
+import { Player, type PlayerEvent, type PlayerHost } from '../entities/player';
 import type { Projectile } from '../entities/projectile';
 import { Skitter } from '../entities/skitter';
+import { Spitter } from '../entities/spitter';
+import { Vesper } from '../entities/vesper';
 import { Warden } from '../entities/warden';
 import type { Hazard, TileMap } from '../physics/tilemap';
 import { Particles } from './particles';
 import { findDoor, parseRoom, type Room, type RoomDef, type Side } from './room';
 import { ROOMS, START_ROOM } from './rooms';
 import { newSave, writeSave, type KV, type SaveData } from './save';
+import { buy, SHOP, statsFor } from './shop';
 
 export type SfxFn = (name: string) => void;
 
@@ -77,10 +80,13 @@ export class World implements PlayerHost {
   modal: Modal | null = null;
   banner: Banner | null = null;
   private pendingModal: { delay: number; title: string; body: string } | null = null;
-  boss: Warden | null = null;
+  boss: Warden | Vesper | null = null;
   bossActive = false;
   gateAnim = 0;
   nearLantern: Lantern | null = null;
+  nearMerchant: Merchant | null = null;
+  /** Open merchant panel. */
+  shop: { sel: number; t: number; msg: string; msgT: number } | null = null;
   nearTablet: Tablet | null = null;
   private visited = new Set<string>();
   private deathSpot: { room: string; x: number; y: number } | null = null;
@@ -129,6 +135,7 @@ export class World implements PlayerHost {
     }
     this.room = room;
     room.map.gatesClosed = false;
+    room.map.sealOpen = this.save.bossDefeated;
     this.gateAnim = 0;
     this.enemies = [];
     this.projectiles = [];
@@ -147,6 +154,24 @@ export class World implements PlayerHost {
           break;
         case 's':
           this.enemies.push(new Ironshell(s.x, s.y));
+          break;
+        case 'p':
+          this.enemies.push(new Spitter(s.x, s.y));
+          break;
+        case 'V':
+          if (!this.save.duelDefeated) {
+            this.boss = new Vesper(s.x, s.y);
+            this.enemies.push(this.boss);
+          }
+          break;
+        case 'W':
+          if (!this.save.wings) this.pickups.push(new Relic(s.x, s.y, 'wings'));
+          break;
+        case 'M':
+          this.pickups.push(new Merchant(s.x, s.y));
+          break;
+        case 'Q':
+          if (!this.save.cache) this.pickups.push(new Hoard(s.x, s.y));
           break;
         case 'B':
           if (!this.save.bossDefeated) {
@@ -177,6 +202,7 @@ export class World implements PlayerHost {
   private spawnAtBench(startRoom?: string): void {
     const b = this.save.bench;
     const p = this.player;
+    this.applyStats();
     if (b && this.rooms[b.room]) {
       this.loadRoom(b.room);
       p.respawn(b.x, b.y);
@@ -188,6 +214,19 @@ export class World implements PlayerHost {
     }
     p.dashUnlocked = this.save.dash;
     this.camera.snap(p, this.map);
+  }
+
+  /** Abilities and purchased upgrades -> player stats. */
+  applyStats(): void {
+    const p = this.player;
+    const st = statsFor(this.save);
+    p.maxHp = st.maxHp;
+    p.hp = Math.min(p.hp, p.maxHp);
+    p.damage = st.damage;
+    p.healTime = st.healTime;
+    p.soulPerHit = st.soulPerHit;
+    p.dashUnlocked = this.save.dash;
+    p.wingsUnlocked = this.save.wings;
   }
 
   /** Arrive in `roomId` through the door with `doorId`. */
@@ -259,6 +298,11 @@ export class World implements PlayerHost {
     const p = this.player;
     p.noteInput(inp);
 
+    if (this.shop) {
+      this.updateShop(inp);
+      this.particles.update(DT);
+      return;
+    }
     if (this.modal) {
       this.modal.t += DT;
       if (this.modal.t > 0.6 && (inp.pressed.confirm || inp.pressed.jump || inp.pressed.attack)) {
@@ -294,7 +338,7 @@ export class World implements PlayerHost {
       return;
     }
 
-    p.dashUnlocked = this.save.dash;
+    this.applyStats();
     p.update(this, inp);
     for (const e of this.enemies) if (!e.dead) e.update(this);
     for (const pr of this.projectiles) if (!pr.dead) pr.update(this);
@@ -363,11 +407,12 @@ export class World implements PlayerHost {
       const hy = (Math.max(box.y, hb.y) + Math.min(box.y + box.h, hb.y + hb.h)) / 2;
       if (r === 'hit') {
         p.gainSoul();
-        this.hitstop = Math.max(this.hitstop, e.kind === 'warden' ? HITSTOP.boss : HITSTOP.enemy);
-        this.camera.addTrauma(e.kind === 'warden' ? 0.14 : 0.22);
+        const isBoss = e.kind === 'warden' || e.kind === 'vesper';
+        this.hitstop = Math.max(this.hitstop, isBoss ? HITSTOP.boss : HITSTOP.enemy);
+        this.camera.addTrauma(isBoss ? 0.14 : 0.22);
         this.particles.sparks(hx, hy, 10, '#ffffff', atk.dir === 'side' ? atk.facing : 0);
         this.particles.soul(hx, hy, this.soulTarget, 3);
-        this.sfx(e.kind === 'warden' ? 'hitBoss' : 'hit');
+        this.sfx(isBoss ? 'hitBoss' : 'hit');
         if (atk.dir === 'down') {
           if (!atk.pogoed) p.pogo();
         } else if (atk.dir === 'side') p.recoilFrom(atk.facing);
@@ -476,22 +521,32 @@ export class World implements PlayerHost {
     this.sfx('enemyDie');
   }
 
-  onBossDefeated(b: Warden): void {
+  onBossDefeated(b: Warden | Vesper): void {
     this.bossActive = false;
     this.map.gatesClosed = false;
-    this.save.bossDefeated = true;
     this.boss = null;
     this.spawnShards(b.cx, b.cy, b.shards);
-    this.particles.burst(b.cx, b.cy, 70, '#ffb27a', 460, 4);
+    this.particles.burst(b.cx, b.cy, 70, b instanceof Warden ? '#ffb27a' : '#c9a6ff', 460, 4);
     this.camera.addTrauma(0.9);
     this.flash = 1;
     this.sfx('bossBreak');
+    if (b instanceof Warden) {
+      this.save.bossDefeated = true;
+      this.map.sealOpen = true;
+      this.pendingModal = {
+        delay: 2.4,
+        title: 'The Warden Falls',
+        body: 'The well grows quiet, and the seal to the east crumbles.\nBeyond it lies the Lowmarket, where shards buy strength.',
+      };
+    } else {
+      this.save.duelDefeated = true;
+      this.pendingModal = {
+        delay: 2.6,
+        title: 'Vesper Yields',
+        body: '"At last, a worthy blade." She lowers hers.\nYou have reached the end of Gloamwell. Thank you for playing.\nYour progress is saved; explore as you like.',
+      };
+    }
     this.persist();
-    this.pendingModal = {
-      delay: 2.4,
-      title: 'The Warden Falls',
-      body: 'The well grows quiet.\nYou have reached the end of this slice. Thank you for playing.\nYour progress is saved; explore as you like.',
-    };
   }
 
   private spawnShards(x: number, y: number, n: number): void {
@@ -516,10 +571,19 @@ export class World implements PlayerHost {
           this.sfx('shard');
           this.shardSfxCd = 0.05;
         }
+      } else if (pk instanceof Hoard) {
+        pk.dead = true;
+        this.save.cache = true;
+        this.spawnShards(pk.cx, pk.y, pk.amount);
+        this.particles.burst(pk.cx, pk.cy, 40, '#8fd3ff', 360, 3);
+        this.camera.addTrauma(0.3);
+        this.sfx('hoard');
+        this.persist();
       } else if (pk instanceof Relic) {
         pk.dead = true;
-        this.save.dash = true;
-        p.dashUnlocked = true;
+        if (pk.ability === 'wings') this.save.wings = true;
+        else this.save.dash = true;
+        this.applyStats();
         p.state = 'frozen';
         p.vx = p.vy = 0;
         this.persist();
@@ -527,11 +591,18 @@ export class World implements PlayerHost {
         this.camera.addTrauma(0.3);
         this.particles.burst(pk.cx, pk.cy, 50, '#bfe9ff', 380, 4);
         this.sfx('relic');
-        this.modal = {
-          title: 'Gale Sigil',
-          body: 'You can now DASH.\nC, L or Shift on a keyboard. RB or RT on a gamepad.\nThe dash refreshes when you land, cling to a wall, or bounce.',
-          t: 0,
-        };
+        this.modal =
+          pk.ability === 'wings'
+            ? {
+                title: 'Twin Feather',
+                body: 'You can now jump again in mid-air.\nPress jump while airborne.\nThe extra jump returns when you land, cling to a wall, or bounce.',
+                t: 0,
+              }
+            : {
+                title: 'Gale Sigil',
+                body: 'You can now DASH.\nC, L or Shift on a keyboard. RB or RT on a gamepad.\nThe dash refreshes when you land, cling to a wall, or bounce.',
+                t: 0,
+              };
       } else if (pk instanceof Echo) {
         pk.dead = true;
         this.save.shards += pk.amount;
@@ -549,12 +620,52 @@ export class World implements PlayerHost {
     const box = p.box();
     this.nearLantern = null;
     this.nearTablet = null;
+    this.nearMerchant = null;
     for (const pk of this.pickups) {
       if (pk instanceof Lantern && overlap(expand(pk, 12), box)) this.nearLantern = pk;
+      if (pk instanceof Merchant && overlap(expand(pk, 16), box)) this.nearMerchant = pk;
       if (pk instanceof Tablet && overlap(expand(pk, 28), box)) this.nearTablet = pk;
     }
     const l = this.nearLantern;
     if (l && p.state === 'normal' && p.grounded && inp.pressed.up && !inp.pressed.attack) this.rest(l);
+    else if (this.nearMerchant && p.state === 'normal' && p.grounded && inp.pressed.up && !inp.pressed.attack) {
+      p.vx = 0;
+      p.attack = null;
+      this.shop = { sel: 0, t: 0, msg: '', msgT: 0 };
+      this.sfx('shopOpen');
+    }
+  }
+
+  private updateShop(inp: InputState): void {
+    const shop = this.shop!;
+    shop.t += DT;
+    shop.msgT = Math.max(0, shop.msgT - DT);
+    const n = SHOP.length;
+    if (inp.pressed.up) shop.sel = (shop.sel + n - 1) % n;
+    if (inp.pressed.down) shop.sel = (shop.sel + 1) % n;
+    if (inp.pressed.up || inp.pressed.down) this.sfx('menu');
+    if (inp.pressed.attack || inp.pressed.pause || inp.pressed.heal) {
+      this.shop = null;
+      this.player.clearBuffers();
+      this.sfx('pause');
+      return;
+    }
+    if (shop.t > 0.15 && (inp.pressed.jump || inp.pressed.confirm)) {
+      const item = SHOP[shop.sel];
+      const r = buy(this.save, item);
+      if (r === 'bought') {
+        this.applyStats();
+        if (item.id === 'mask') this.player.hp = this.player.maxHp;
+        this.persist();
+        shop.msg = `${item.name} acquired.`;
+        this.sfx('buy');
+        this.particles.burst(this.player.cx, this.player.cy, 20, '#ffd38a', 220, 3);
+      } else {
+        shop.msg = r === 'poor' ? 'Not enough shards.' : 'Sold out.';
+        this.sfx('denied');
+      }
+      shop.msgT = 1.6;
+    }
   }
 
   private rest(l: Lantern): void {
@@ -579,7 +690,7 @@ export class World implements PlayerHost {
       this.map.gatesClosed = true;
       b.wake();
       this.sfx('gate');
-      this.banner = { kind: 'boss', title: 'Warden of the Well', sub: 'the sleeper beneath', t: 0, dur: 3.4 };
+      this.banner = { kind: 'boss', title: b.title, sub: b.sub, t: 0, dur: 3.4 };
     }
   }
 
@@ -604,12 +715,16 @@ export class World implements PlayerHost {
     this.startTransition(() => this.enterRoom(door.target, door.id, vx, vy), 0.18, 0.25);
   }
 
-  onPlayerEvent(kind: 'jump' | 'walljump' | 'land' | 'dash' | 'healed', strength = 0): void {
+  onPlayerEvent(kind: PlayerEvent, strength = 0): void {
     const p = this.player;
     const feet = p.y + p.h;
     switch (kind) {
       case 'jump':
         this.particles.dust(p.cx, feet, 5, 0.7);
+        break;
+      case 'doublejump':
+        this.particles.burst(p.cx, feet, 10, '#e8f0ff', 160, 2.5);
+        this.particles.ring(p.cx, feet, '#cfe0ff');
         break;
       case 'walljump':
         this.particles.dust(strength > 0 ? p.x + p.w : p.x, p.cy, 6, 0.8);
