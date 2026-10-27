@@ -1,7 +1,7 @@
 import { DT } from './tuning';
 
 const MAX_FRAME = 0.25;
-const MAX_STEPS = 10;
+const MAX_STEPS = Math.ceil(MAX_FRAME / DT);
 
 /**
  * Fixed-timestep accumulator. Feed it real elapsed seconds; it runs `step`
