@@ -1,6 +1,8 @@
 // All art is drawn with canvas paths: no image assets.
 import { clamp } from '../core/math';
 import { PLAYER, TILE } from '../core/tuning';
+import type { Ashveil } from '../entities/ashveil';
+import type { BroodEgg, Broodling } from '../entities/brood';
 import type { Duskmoth } from '../entities/duskmoth';
 import type { Ironshell } from '../entities/ironshell';
 import type { Echo, Hoard, Lantern, Merchant, Relic, Shard, Tablet } from '../entities/pickups';
@@ -519,6 +521,69 @@ export function drawProjectile(ctx: Ctx, pr: Projectile, x: number, y: number, m
     ctx.restore();
     return;
   }
+  if (pr.kind === 'feather') {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.atan2(pr.vy, pr.vx));
+    glow(ctx, 0, 0, 14, '#f0d8a8', 0.4);
+    ctx.fillStyle = '#f2e6cf';
+    ctx.beginPath();
+    ctx.moveTo(-9, 0);
+    ctx.quadraticCurveTo(0, -5, 9, 0);
+    ctx.quadraticCurveTo(0, 5, -9, 0);
+    ctx.fill();
+    ctx.strokeStyle = '#8a7350';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(8, 0);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (pr.kind === 'vine') {
+    const base = y + pr.h;
+    if (pr.delay > 0) {
+      // Telegraph: the floor splits and glows.
+      const k = clamp(1 - pr.delay / 0.75, 0, 1);
+      glow(ctx, cx, base, 30 + k * 20, '#c8e070', 0.25 + k * 0.45);
+      ctx.strokeStyle = `rgba(210,240,140,${0.4 + k * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 6, base - 1);
+      ctx.lineTo(x + pr.w * 0.35, base - 3);
+      ctx.lineTo(x + pr.w * 0.6, base - 1);
+      ctx.lineTo(x + pr.w - 6, base - 3);
+      ctx.stroke();
+      return;
+    }
+    const grow = clamp(pr.t * 12, 0, 1);
+    const h = pr.h * grow;
+    for (let i = 0; i < 4; i++) {
+      const vx = x + 8 + i * ((pr.w - 16) / 3);
+      const sway = Math.sin(t * 6 + i) * 3;
+      ctx.fillStyle = '#1d2a12';
+      ctx.beginPath();
+      ctx.moveTo(vx - 6, base);
+      ctx.quadraticCurveTo(vx - 2 + sway, base - h * 0.6, vx + sway * 1.5, base - h);
+      ctx.quadraticCurveTo(vx + 3 + sway, base - h * 0.5, vx + 6, base);
+      ctx.fill();
+      ctx.strokeStyle = '#d7e8a8';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.fillStyle = '#e8f0c8';
+      for (let k = 1; k < 4; k++) {
+        const ty = base - (h * k) / 4;
+        const side = k % 2 ? 1 : -1;
+        ctx.beginPath();
+        ctx.moveTo(vx + sway * (k / 4), ty);
+        ctx.lineTo(vx + sway * (k / 4) + side * 7, ty - 3);
+        ctx.lineTo(vx + sway * (k / 4), ty - 4);
+        ctx.fill();
+      }
+    }
+    return;
+  }
   if (pr.kind === 'crescent') {
     glow(ctx, cx, cy, 34, '#b48cff', 0.7);
     ctx.save();
@@ -915,5 +980,194 @@ export function drawHoard(ctx: Ctx, h: Hoard, x: number, y: number, t: number): 
     ctx.fillStyle = '#c8efff';
     ctx.fillRect(-1, -hgt * 0.75, 2, hgt * 0.5);
     ctx.restore();
+  }
+}
+
+export function drawBroodling(ctx: Ctx, e: Broodling, x: number, y: number, t: number): void {
+  const cx = x + e.w / 2;
+  const cy = y + e.h / 2;
+  glow(ctx, cx, cy, 14, '#f0d8a8', 0.3);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(e.facing, 1);
+  const flap = Math.abs(Math.sin(t * 45 + x));
+  ctx.fillStyle = fl(e.flash, 'rgba(235,220,190,0.55)');
+  ellipse(ctx, -3, -6, 7, 2 + flap * 4, -0.4);
+  ctx.fillStyle = fl(e.flash, '#cdb894');
+  ellipse(ctx, 0, 0, 7, 6);
+  ctx.strokeStyle = fl(e.flash, '#7a6548');
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-4, -2);
+  ctx.lineTo(-4, 4);
+  ctx.moveTo(-1, -4);
+  ctx.lineTo(-1, 5);
+  ctx.stroke();
+  ctx.fillStyle = '#2a1a0c';
+  ellipse(ctx, 4, -1, 2.2, 2.2);
+  ctx.fillStyle = '#ffd36b';
+  ellipse(ctx, 4.6, -1.4, 0.9, 0.9);
+  ctx.restore();
+}
+
+export function drawEgg(ctx: Ctx, e: BroodEgg, x: number, y: number, t: number): void {
+  const cx = x + e.w / 2;
+  const base = y + e.h;
+  const k = e.ripeness;
+  const pulse = 1 + Math.sin(t * (6 + k * 18)) * 0.05 * (0.3 + k);
+  glow(ctx, cx, base - 10, 16 + k * 18, '#f0d8a8', 0.2 + k * 0.5);
+  ctx.save();
+  ctx.translate(cx, base);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = fl(e.flash, '#e8dcc4');
+  ellipse(ctx, 0, -10, 8.5, 10.5);
+  ctx.strokeStyle = fl(e.flash, `rgba(150,110,70,${0.5 + k * 0.4})`);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-5, -16);
+  ctx.quadraticCurveTo(-1, -10, -4, -3);
+  ctx.moveTo(3, -18);
+  ctx.quadraticCurveTo(6, -11, 2, -4);
+  ctx.stroke();
+  if (k > 0.6) {
+    // Something moves inside.
+    ctx.fillStyle = `rgba(60,40,20,${(k - 0.6) * 1.5})`;
+    ellipse(ctx, Math.sin(t * 9) * 2, -10, 3.5, 4.5);
+  }
+  ctx.restore();
+}
+
+/** Mother Ashveil: a vast ash-pale moth with a crown of eyes and an egg-heavy abdomen. */
+export function drawAshveil(ctx: Ctx, e: Ashveil, x: number, y: number, t: number): void {
+  const cx = x + e.w / 2;
+  const cy = y + e.h / 2;
+  const s = e.state;
+  const c = (col: string): string => fl(e.flash, col);
+  const torn = e.phase === 3;
+  const grounded = e.grounded3;
+  const angry = e.vengeful || s === 'enrage';
+  glow(ctx, cx, cy, 120, angry ? '#ff9a6a' : '#f0d8a8', s === 'dormant' ? 0.12 : 0.22);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(e.facing, 1);
+  if (s === 'dormant' || s === 'intro') ctx.rotate(s === 'dormant' ? Math.PI : Math.PI * Math.max(0, 1 - e.st / 0.9));
+  if (s === 'dive') ctx.rotate(Math.atan2(e.vy, Math.abs(e.vx) + 1) * 0.6);
+  if (s === 'tumble') ctx.rotate(e.st * 9);
+  if (s === 'dying') ctx.rotate(Math.min(1, e.st) * 0.8);
+
+  // Wings: spread wide in the air, folded for a dive, torn in phase three.
+  let spread = 1;
+  let beat = Math.sin(t * (s === 'dive' ? 0 : s === 'flinch' ? 30 : 9));
+  if (s === 'dive' || s === 'diveWind') spread = s === 'dive' ? 0.35 : 0.7;
+  if (s === 'sprayWind' || s === 'spray' || s === 'spiralWind') spread = 1.25;
+  if (grounded) {
+    spread = 0.6;
+    beat = Math.sin(t * 4) * 0.3;
+  }
+  const wingCol = c(torn ? '#8a7d6c' : '#cfc2aa');
+  const veinCol = c('#6a5a46');
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(1, side === -1 ? 1 : 0.92);
+    ctx.rotate(side * 0.1 + beat * 0.25 * side);
+    ctx.fillStyle = wingCol;
+    ctx.globalAlpha = side === -1 ? 0.75 : 1;
+    ctx.beginPath();
+    ctx.moveTo(-4, -6);
+    const span = 70 * spread;
+    if (torn) {
+      ctx.lineTo(-span * 0.5, -40 * spread);
+      ctx.lineTo(-span * 0.7, -22 * spread);
+      ctx.lineTo(-span * 0.45, -14 * spread);
+      ctx.lineTo(-span * 0.62, 4);
+      ctx.lineTo(-span * 0.3, 8);
+    } else {
+      ctx.quadraticCurveTo(-span * 0.5, -60 * spread, -span, -34 * spread);
+      ctx.quadraticCurveTo(-span * 0.9, -6, -span * 0.75, 14 * spread);
+      ctx.quadraticCurveTo(-span * 0.4, 18, -6, 6);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = veinCol;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-6, -4);
+    ctx.lineTo(-span * 0.7, -30 * spread);
+    ctx.moveTo(-6, 0);
+    ctx.lineTo(-span * 0.75, -4 * spread);
+    ctx.moveTo(-6, 4);
+    ctx.lineTo(-span * 0.55, 12 * spread);
+    ctx.stroke();
+    // Eyespot
+    if (!torn) {
+      ctx.fillStyle = c('#4a3a2a');
+      ellipse(ctx, -span * 0.55, -22 * spread, 6 * spread, 6 * spread);
+      ctx.fillStyle = angry ? '#ff8a5a' : '#e8c070';
+      ellipse(ctx, -span * 0.55, -22 * spread, 2.5 * spread, 2.5 * spread);
+    }
+    ctx.restore();
+  }
+
+  // Abdomen, swelling while she lays
+  const swell = s === 'layWind' ? 1 + Math.min(1, e.st / 0.5) * 0.25 : 1;
+  ctx.fillStyle = c('#5a4a3a');
+  ellipse(ctx, -14, 10, 18 * swell, 13 * swell, 0.4);
+  ctx.strokeStyle = c('#8a7458');
+  ctx.lineWidth = 1.2;
+  for (const k of [-20, -12, -4]) {
+    ctx.beginPath();
+    ctx.arc(k, 10, 10 * swell, -1.1, 1.1);
+    ctx.stroke();
+  }
+  // Furred thorax
+  ctx.fillStyle = c('#e6dcc6');
+  ellipse(ctx, 6, -2, 15, 13);
+  ctx.strokeStyle = c('#b9a988');
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(6 + Math.cos(a) * 11, -2 + Math.sin(a) * 10);
+    ctx.lineTo(6 + Math.cos(a) * 15, -2 + Math.sin(a) * 14);
+    ctx.stroke();
+  }
+  // Head with a crown of small eyes and feathered antennae
+  ctx.fillStyle = c('#2e2418');
+  ellipse(ctx, 20, -8, 9, 8);
+  ctx.strokeStyle = c('#cfc2aa');
+  ctx.lineWidth = 1.5;
+  for (const k of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(22, -14);
+    ctx.quadraticCurveTo(28 + k * 4, -30, 36 + k * 6, -32);
+    ctx.stroke();
+  }
+  const eyeCol = angry || s === 'diveWind' ? '#ff6a3a' : s === 'dormant' ? '#5a4a30' : '#ffd36b';
+  ctx.fillStyle = eyeCol;
+  for (const [ex, ey] of [
+    [23, -11],
+    [26, -7],
+    [21, -5],
+    [26, -12],
+  ]) {
+    ellipse(ctx, ex, ey, 1.6, 1.6);
+  }
+  // Legs, scrabbling when she crawls
+  ctx.strokeStyle = c('#2e2418');
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const ph = grounded ? Math.sin(t * 14 + i * 2) * 4 : 0;
+    ctx.beginPath();
+    ctx.moveTo(2 + i * 6, 8);
+    ctx.lineTo(i * 6 + ph, 20);
+    ctx.lineTo(4 + i * 6 + ph, 24);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  if (s === 'diveWind' || s === 'sprayWind' || s === 'layWind' || s === 'vineWind' || s === 'spiralWind' || s === 'screechWind') {
+    glow(ctx, cx + e.facing * 20, y + 12, 24, s === 'vineWind' ? '#c8e070' : '#ffd36b', 0.5 + Math.sin(t * 40) * 0.2);
   }
 }

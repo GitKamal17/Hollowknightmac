@@ -26,6 +26,9 @@ export const THEMES: Record<string, Theme> = {
   cache: { skyTop: '#132838', skyBottom: '#050c12', far: '#1c3a50', mid: '#10222f', rock: '#050b10', rockLight: '#2f5f7c', moss: '#8fd3ff', accent: '#c8efff', beam: '160,220,255' },
   heights: { skyTop: '#22263f', skyBottom: '#080912', far: '#2f3558', mid: '#1a1e36', rock: '#070812', rockLight: '#454f86', moss: '#a7b4f0', accent: '#d0d8ff', beam: '200,210,255' },
   duel: { skyTop: '#241a38', skyBottom: '#08060f', far: '#33264e', mid: '#1d152e', rock: '#08060e', rockLight: '#4d3d78', moss: '#b8a0ec', accent: '#d8c4ff', beam: '210,190,255' },
+  gloom: { skyTop: '#1f2618', skyBottom: '#070905', far: '#2c3622', mid: '#182014', rock: '#070906', rockLight: '#45573a', moss: '#b8d488', accent: '#e0f0b0', beam: '220,240,170' },
+  cradle: { skyTop: '#2e2618', skyBottom: '#0d0a06', far: '#41361f', mid: '#251e12', rock: '#0c0906', rockLight: '#66573a', moss: '#ecd49a', accent: '#ffe6b0', beam: '255,230,170' },
+  brood: { skyTop: '#2c2418', skyBottom: '#0b0805', far: '#3d3220', mid: '#221b11', rock: '#0b0805', rockLight: '#615236', moss: '#e6d2a0', accent: '#fff0c8', beam: '255,235,190' },
   arena: { skyTop: '#301712', skyBottom: '#0c0504', far: '#44221a', mid: '#26120d', rock: '#0c0605', rockLight: '#653325', moss: '#e08b5c', accent: '#ffa36a', beam: '255,170,120' },
 };
 

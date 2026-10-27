@@ -77,7 +77,7 @@ try {
   const t0 = Date.now();
   let i = 0;
   let midShot = false;
-  while (Date.now() - t0 < 20000 && (await room()) === 'gate') {
+  while (Date.now() - t0 < 32000 && (await room()) === 'gate') {
     if (i % 3 === 0) await tap('z', 180);
     else await tap('x', 40);
     await wait(90);
@@ -277,12 +277,21 @@ try {
   await warp('nest', 'x');
   await wait(300);
   await page.evaluate(() => { window.__gloam.world.enemies = []; });
+  // Walk up to the pedestal, then hop onto it.
   await page.keyboard.down('ArrowRight');
-  for (let k = 0; k < 40 && !(await page.evaluate(() => window.__gloam.world.modal !== null)); k++) {
-    await tap('z', 200);
-    await wait(150);
-  }
+  await page.waitForFunction(() => {
+    const w = window.__gloam.world;
+    const r = w.pickups.find((p) => p.kind === 'relic');
+    return !r || w.player.cx > r.cx - 110;
+  }, null, { polling: 'raf', timeout: 8000 });
   await page.keyboard.up('ArrowRight');
+  for (let k = 0; k < 6 && !(await page.evaluate(() => window.__gloam.world.modal !== null)); k++) {
+    await page.keyboard.down('ArrowRight');
+    await tap('z', 220);
+    await wait(120);
+    await page.keyboard.up('ArrowRight');
+    await wait(250);
+  }
   await wait(800);
   check(await page.evaluate(() => window.__gloam.world.save.wings), 'the nest relic grants the double jump');
   await shot('18-wings');
@@ -336,6 +345,106 @@ try {
   }
   const vesper = await page.evaluate(() => ({ hp: window.__gloam.world.boss?.hp ?? 0, max: window.__gloam.world.boss?.maxHp ?? 0 }));
   check(vesper.hp < vesper.max, `Vesper takes damage (hp ${vesper.hp}/${vesper.max})`);
+
+  // ---- The third area ------------------------------------------------------
+  console.log('The Hanging Gloom (debug: mark Vesper defeated)');
+  await page.evaluate(() => {
+    const w = window.__gloam.world;
+    w.save.duelDefeated = true;
+    w.player.hp = w.player.maxHp;
+  });
+  await warp('gloom', 'k');
+  await wait(1500);
+  await shot('23-gloom');
+  await warp('cradle', 'n');
+  await wait(1300);
+  await shot('24-cradle');
+
+  console.log('Mother Ashveil');
+  await warp('brood', 'o');
+  await wait(300);
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => window.__gloam.world.bossActive, null, { timeout: 5000 });
+  await page.keyboard.up('ArrowRight');
+  await wait(2200);
+  await shot('25-ashveil-intro');
+  const fightAshveil = async (ms, name) => {
+    const start = Date.now();
+    let taken = false;
+    while (Date.now() - start < ms) {
+      await page.evaluate(() => { const p = window.__gloam.world.player; if (p.hp < 3) p.hp = p.maxHp; });
+      const dir = await page.evaluate(() => {
+        const w = window.__gloam.world;
+        if (!w.boss) return [0, 0];
+        return [Math.sign(w.boss.cx - w.player.cx), w.boss.cy < w.player.cy - 40 ? 1 : 0];
+      });
+      const key = dir[0] > 0 ? 'ArrowRight' : 'ArrowLeft';
+      if (dir[0] !== 0) await page.keyboard.down(key);
+      if (dir[1]) await page.keyboard.down('ArrowUp');
+      await tap('z', 160);
+      await tap('z', 60);
+      await tap('x', 40);
+      if (dir[1]) await page.keyboard.up('ArrowUp');
+      if (dir[0] !== 0) await page.keyboard.up(key);
+      if (name && !taken && Date.now() - start > ms / 2) {
+        await shot(name);
+        taken = true;
+      }
+    }
+  };
+  // Debug: bring her to just above a threshold and land one strike, so phase changes are deterministic.
+  const pushToPhase = (frac) =>
+    page.evaluate((frac) => {
+      const w = window.__gloam.world;
+      const b = w.boss;
+      if (!b) return;
+      b.hp = Math.floor(b.maxHp * frac) + 1;
+      b.strike(w, { dir: 'up', facing: 1, t: 0, active: true, hit: new Set(), pogoed: false, swing: 0 });
+      w.player.hp = w.player.maxHp;
+    }, frac);
+
+  await fightAshveil(4000, '26-ashveil-fight');
+  // She keeps her distance, so wait for her to dive into reach, then strike.
+  const hpBefore = await page.evaluate(() => window.__gloam.world.boss.hp);
+  const swingStart = Date.now();
+  while (Date.now() - swingStart < 20000 && (await page.evaluate(() => window.__gloam.world.boss.hp)) === hpBefore) {
+    const st = await page.evaluate(() => {
+      const w = window.__gloam.world;
+      const b = w.boss;
+      w.player.hp = w.player.maxHp;
+      return { dx: b.cx - w.player.cx, dy: b.cy - w.player.cy, state: b.state };
+    });
+    const key = st.dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+    if (Math.abs(st.dx) < 110 && Math.abs(st.dy) < 110) {
+      await page.keyboard.down(key);
+      await wait(16);
+      await page.keyboard.up(key);
+      if (st.dy < -30) await page.keyboard.down('ArrowUp');
+      await tap('x', 40);
+      if (st.dy < -30) await page.keyboard.up('ArrowUp');
+      await wait(120);
+    } else if (Math.abs(st.dx) > 60) {
+      await page.keyboard.down(key);
+      await wait(80);
+      await page.keyboard.up(key);
+    } else await wait(30);
+  }
+  const ash = await page.evaluate(() => ({ hp: window.__gloam.world.boss?.hp ?? 0, max: window.__gloam.world.boss?.maxHp ?? 0 }));
+  check(ash.hp < ash.max, `Ashveil can be struck when she dives into reach (hp ${ash.hp}/${ash.max})`);
+
+  console.log('Ashveil phase two (debug: push her past half health)');
+  await pushToPhase(0.55);
+  check(await page.evaluate(() => window.__gloam.world.boss?.phase === 2), 'Ashveil reaches phase two');
+  await page.waitForFunction(() => window.__gloam.world.projectiles.some((p) => p.kind === 'vine' && p.delay <= 0), null, { timeout: 8000 });
+  await wait(150);
+  await shot('27-ashveil-vines');
+
+  console.log('Ashveil phase three (debug: push her near death)');
+  await pushToPhase(0.22);
+  await page.waitForFunction(() => ['crawl', 'screechWind'].includes(window.__gloam.world.boss?.state), null, { timeout: 6000 });
+  await fightAshveil(1500, '');
+  await shot('28-ashveil-crawl');
+  check(await page.evaluate(() => window.__gloam.world.boss?.phase === 3), 'Ashveil falls and crawls in phase three');
 } catch (e) {
   failed = true;
   console.error(e);

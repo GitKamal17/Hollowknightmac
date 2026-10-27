@@ -367,7 +367,9 @@ export class World implements PlayerHost {
     this.projectiles = this.projectiles.filter((x) => !x.dead);
     this.pickups = this.pickups.filter((x) => !x.dead);
     this.gateAnim = approach(this.gateAnim, this.map.gatesClosed ? 1 : 0, DT * 4);
-    this.camera.update(p, this.map, DT);
+    const b = this.boss;
+    const focus = this.bossActive && b && !b.dead ? { x: b.cx, y: b.cy } : undefined;
+    this.camera.update(p, this.map, DT, focus);
     this.particles.update(DT);
   }
 

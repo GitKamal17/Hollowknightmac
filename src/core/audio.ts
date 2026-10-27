@@ -320,6 +320,31 @@ export class AudioFx {
       case 'hoard':
         for (let i = 0; i < 8; i++) this.tone({ f: 1500 + Math.random() * 1200, dur: 0.12, gain: 0.04, delay: i * 0.04 });
         break;
+      case 'shriek':
+        this.tone({ f: 1400, f2: 700, dur: 0.6, gain: 0.08, type: 'sawtooth', attack: 0.03 });
+        this.tone({ f: 1870, f2: 900, dur: 0.5, gain: 0.05, type: 'sawtooth', attack: 0.03 });
+        this.noise({ dur: 0.6, f: 3000, gain: 0.1 });
+        break;
+      case 'wingbeat':
+        this.noise({ dur: 0.18, f: 300, type: 'lowpass', gain: 0.25 });
+        break;
+      case 'eggLay':
+        this.tone({ f: 200, f2: 120, dur: 0.25, gain: 0.12 });
+        this.noise({ dur: 0.15, f: 600, type: 'lowpass', gain: 0.1 });
+        break;
+      case 'hatch':
+        this.noise({ dur: 0.1, f: 2500, gain: 0.1, q: 3 });
+        this.tone({ f: 900, f2: 1400, dur: 0.1, gain: 0.04 });
+        break;
+      case 'dive':
+        this.noise({ dur: 0.5, f: 400, f2: 2200, gain: 0.18, q: 0.8 });
+        break;
+      case 'feather':
+        this.noise({ dur: 0.1, f: 5000, gain: 0.06, q: 2 });
+        break;
+      case 'vine':
+        this.noise({ dur: 0.7, f: 200, f2: 900, type: 'lowpass', gain: 0.25 });
+        break;
       case 'menu':
         this.tone({ f: 880, dur: 0.05, gain: 0.05, type: 'triangle' });
         break;

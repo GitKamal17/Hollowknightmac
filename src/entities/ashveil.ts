@@ -72,7 +72,7 @@ export class Ashveil extends Enemy implements BroodParent {
     this.hp = this.maxHp = ASHVEIL_HP;
     this.shards = 120;
     this.placeAt(cx, bottom);
-    this.y = 2 * TILE + 2; // hanging from the ceiling
+    this.y = 3 * TILE; // hanging from the ceiling
     this.savePrev();
   }
 
@@ -156,7 +156,7 @@ export class Ashveil extends Enemy implements BroodParent {
     if (this.state !== 'dive') this.facing = dx >= 0 ? 1 : -1;
     const left = 2 * TILE + 6;
     const right = w.map.pw - 2 * TILE - 6 - this.w;
-    const top = 2 * TILE + 4;
+    const top = 3 * TILE + 8; // keep clear of the very top of the screen
     const cruiseY = clamp(p.y - 210, top, this.floorTop - 260);
 
     switch (this.state) {

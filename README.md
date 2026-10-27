@@ -1,6 +1,6 @@
 # Gloamwell
 
-An original 2D action-platformer, built to recreate the *game feel* of Hollow Knight: tight movement, nail-style combat with pogo bounces, lantern save points, a death echo, ability gates, a merchant, and two bosses with distinct fighting personalities. All names, art, sound and lore are original. Nothing is taken from Team Cherry's game.
+An original 2D action-platformer, built to recreate the *game feel* of Hollow Knight: tight movement, nail-style combat with pogo bounces, lantern save points, a death echo, ability gates, a merchant, and three bosses with distinct fighting personalities. All names, art, sound and lore are original. Nothing is taken from Team Cherry's game.
 
 It runs in any modern browser, so it plays on a Mac in Safari or Chrome. Everything (characters, terrain, effects, sound) is generated in code. There are no image or audio files.
 
@@ -9,6 +9,7 @@ It runs in any modern browser, so it plays on a Mac in Safari or Chrome. Everyth
 | ![Gloam Gate](docs/gate.png) | ![Thornfield](docs/thorns.png) |
 | ![Lantern Rest](docs/lantern.png) | ![Warden of the Well, phase two](docs/boss.png) |
 | ![The Peddler's shop](docs/shop.png) | ![Vesper, the Duskblade](docs/vesper.png) |
+| ![Mother Ashveil, phase two](docs/ashveil.png) | |
 
 ## Run it
 
@@ -20,7 +21,7 @@ npm run dev        # http://localhost:5173
 ```sh
 npm run build      # strict typecheck + production bundle in dist/
 npm run preview    # serve the production build
-npm test           # 97 unit and simulation tests
+npm test           # 114 unit and simulation tests
 npm run e2e        # headless playthrough with screenshots (see Testing)
 ```
 
@@ -44,19 +45,21 @@ Heal is on **V / I**, not A: A is "left" in WASD, so it can't also be heal.
 
 ## What's in the game
 
-Fifteen connected rooms in two areas, roughly 20-30 minutes for a first run.
+Eighteen connected rooms in three areas, roughly 30-45 minutes for a first run.
 
 **The Well** (first area): Gloam Gate → Rootway → The Long Throat (wall-jump climb) → Thornfield (pogo gauntlet) → Shrine of Gales (**dash**) → Lantern Rest (lantern + merchant) → The Sundered Floor (dash gate) → The Well Floor (**boss: Warden of the Well**).
 
 **The Lowmarket** (behind a seal that breaks when the Warden falls): The Ember Stair → Lowmarket (hub: lantern + merchant) → The Needle Spires → Featherfall Nest (**double jump**) → back to Lowmarket and up The Long Ascent (double-jump climb) → Vesper's Court (**boss: Vesper, the Duskblade**). A secret room, Hoarder's Hollow, sits above the Spires and needs the double jump.
 
+**The Gloom** (behind a seal in Vesper's Court that breaks when she yields): The Hanging Gloom (a thorn pit swarming with broodlings) → Cradle Lantern (lantern + merchant, a short walk from the boss) → The Brood Nest (**boss: Mother Ashveil**).
+
 ### Shards and the Peddler
 
-Shards drop from every enemy (bosses drop a lot) and from a secret hoard. Spend them at the Peddler, who is at Lantern Rest and in the Lowmarket. Press **Up** next to him.
+Shards drop from every enemy (bosses drop a lot) and from a secret hoard. Spend them at the Peddler, who is at Lantern Rest, in the Lowmarket, and at the Cradle Lantern. Press **Up** next to him.
 
 | Upgrade | Effect | Cost |
 |---|---|---|
-| Mask Shard (×2) | +1 max mask each | 60, then 150 |
+| Mask Shard (×3) | +1 max mask each | 60, then 150, then 260 |
 | Deep Vessel | 16 essence per hit instead of 11, so you heal more often | 70 |
 | Quick Focus | Healing channels in 0.55 s instead of 0.95 s | 90 |
 | Honed Blade | Strikes deal double damage | 180 |
@@ -70,6 +73,7 @@ Every enemy has a temperament, so the same tactic doesn't work everywhere:
 - **Skitter**: each one is bold or timid. Bold ones rush you when you're level with them and turn on you when hurt. Timid ones scurry away.
 - **Duskmoth**: perches above you, aims where you're *going*, and about a third of the time loses its nerve mid-tell, darts aside, and tries again.
 - **Ironshell**: its shield blocks strikes from the front. It learns: every hit in the back makes it turn faster. Crowd it and it bashes you, cooldown or not; hammer its shield and it may counter-bash.
+- **Broodling**: tiny, fragile and fast; swarms you in wobbling lines.
 - **Spitter**: lobs acid that leads your movement. Get close and it shells up, shrugging off side strikes (hit it from above), then pops open and spits point-blank.
 
 ### The bosses
@@ -89,6 +93,14 @@ Every enemy has a temperament, so the same tactic doesn't work everywhere:
 - Three quick hits and she backflips away and counters from range.
 - She feints lunges, punishes healing, and taunts you if you hang back (a gamble: hitting her during the taunt provokes an instant backflip).
 - Phase two: double-back lunges, longer combos, and thrown dusk crescents.
+
+**Mother Ashveil**: a vast flying brood mother. You fight her in the air, with the double jump and the dash.
+- She lays eggs that hatch into broodlings, at most four alive at once. That's the dilemma: ignore them and you get swarmed; kill them (or smash an egg before it hatches) and she grieves. Two losses and she dives at you in a faster, vengeful swoop.
+- She keeps her distance and flinches away when you get close in the air, but not every time; there's a cooldown to exploit.
+- Land five hits within two seconds while she's airborne and she tumbles out of the sky, open for punishment.
+- Phase two (55% health): thorn vines erupt from glowing cracks in the floor, forcing you up into her airspace, and she fires spiralling rings.
+- Phase three (22% health): wings torn, she crashes down and crawls after you, shrieking feathers. Grounded at last; bounce on her back.
+- During every boss fight the camera frames both of you, so she never leaves the screen.
 
 ### Core mechanics
 
@@ -140,9 +152,11 @@ src/
   - The seal really blocks the east until the Warden falls.
   - The Lowmarket's high ledge and the Spires secret can't be reached without the double jump; with it, a bot climbs all of The Long Ascent.
   - A bot crosses the Needle Spires pillar to pillar without the double jump and without taking damage.
-  - Both boss fights run to completion on three seeds each, with no state lasting long enough to look stuck, the gates reopening, and the victory saved. The Warden is seen using every attack. Against a bot that keeps swinging at her face, Vesper is seen parrying it and backflipping out of its combos.
+  - Mother Ashveil is beaten on three seeds by an aerial bot (jump, double jump, strike up), through all three phases, with every move seen, at most four of her brood alive at once, and the brood dying with her. Separate tests prove her grief dive, her flinch and her tumble.
+  - The seal in Vesper's Court holds until she yields, and The Hanging Gloom can be crossed perch to perch.
+  - The Warden and Vesper fights run to completion on three seeds each, with no state lasting long enough to look stuck, the gates reopening, and the victory saved. The Warden is seen using every attack. Against a bot that keeps swinging at her face, Vesper is seen parrying it and backflipping out of its combos.
 
-`npm run e2e` starts the dev server, opens Chromium with Playwright, and plays: starts a new game, walks and fights through the first room into the second **using real key presses**, rests at the lantern, takes the dash relic, jumps and dashes across the chasm, fights the Warden into phase two, then continues into the second area: buys a Mask Shard from the Peddler, takes the Twin Feather, measures the double jump, and fights Vesper. It saves screenshots to `screenshots/` and fails on any console error or failed check. It needs Playwright, which is deliberately not a dependency (it downloads a browser):
+`npm run e2e` starts the dev server, opens Chromium with Playwright, and plays: starts a new game, walks and fights through the first room into the second **using real key presses**, rests at the lantern, takes the dash relic, jumps and dashes across the chasm, fights the Warden into phase two, then continues into the second area: buys a Mask Shard from the Peddler, takes the Twin Feather, measures the double jump, fights Vesper, then visits the Gloom and fights Mother Ashveil through all three phases. It saves screenshots to `screenshots/` and fails on any console error or failed check. It needs Playwright, which is deliberately not a dependency (it downloads a browser):
 
 ```sh
 npm i -D playwright && npx playwright install chromium
@@ -155,10 +169,11 @@ URL flags: `?debug` shows FPS and exposes `window.__gloam` (warp between rooms, 
 
 Being straight about what this is and isn't:
 
-- **It's still small.** Fifteen rooms, four enemy types, two bosses, two abilities, four upgrades. No map, charm system, dialogue, or music score.
+- **It's still small.** Eighteen rooms, five enemy types, three bosses, two abilities, four upgrades. No map, charm system, dialogue, or music score.
 - **The art is programmer art.** It's moody and readable, but procedural vector shapes are nowhere near hand-drawn quality. This is the biggest gap between this and the game it's inspired by.
 - **The feel numbers were tuned by reasoning and bots, not by people.** Bots can prove the windows exist and that each room is beatable. They can't tell you whether the jump feels floaty. This needs human playtesting, and `src/core/tuning.ts` is where to adjust.
-- **Both boss fights are only proven completable with a god-mode bot.** They haven't been balanced against a real player. Vesper's parry odds and the Warden's grudge thresholds are guesses that need playtesting.
+- **All three boss fights are only proven completable with a god-mode bot.** They haven't been balanced against a real player. Vesper's parry odds, the Warden's grudge thresholds and Ashveil's grief/flinch tuning are guesses that need playtesting.
+- **Ashveil flies through the floating platforms in her arena** rather than around them. It reads as "she's in the background" but it's a shortcut.
 - **Prices are set from shard income on paper, not from real play.** If the economy feels stingy or generous, change `src/world/shop.ts`.
 - **Gamepad support follows the W3C Standard Gamepad layout but was never tested on a physical controller.**
 - **Verified only in headless Chromium.** Safari should work (it needs Safari 16+ for `roundRect`) but wasn't run.

@@ -44,7 +44,11 @@ export class Camera {
     this.py = this.y;
   }
 
-  update(p: Target, room: Bounds, dt: number): void {
+  /**
+   * `focus`, when given (a boss), pulls the framing toward it so both fighters
+   * stay on screen. The player is still clamped into the middle of the view.
+   */
+  update(p: Target, room: Bounds, dt: number, focus?: { x: number; y: number }): void {
     this.px = this.x;
     this.py = this.y;
     this.t += dt;
@@ -59,8 +63,12 @@ export class Camera {
       if (p.cy < this.focusY - 110) this.focusY = p.cy + 110;
     }
 
-    const tx = p.cx + this.look - this.w / 2;
-    const ty = this.focusY - this.h / 2;
+    let tx = p.cx + this.look - this.w / 2;
+    let ty = this.focusY - this.h / 2;
+    if (focus) {
+      tx = p.cx * 0.6 + focus.x * 0.4 + this.look * 0.5 - this.w / 2;
+      ty = p.cy * 0.55 + focus.y * 0.45 - 20 - this.h / 2;
+    }
     this.x = damp(this.x, tx, 6, dt);
     this.y = damp(this.y, ty, p.vy > 500 ? 11 : 6, dt);
 

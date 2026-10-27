@@ -1,5 +1,7 @@
 import { clamp, lerp } from '../core/math';
 import { TILE, VIEW_H, VIEW_W, WORLD_VIEW_H, WORLD_VIEW_W, ZOOM } from '../core/tuning';
+import { Ashveil } from '../entities/ashveil';
+import { BroodEgg, Broodling } from '../entities/brood';
 import { Duskmoth } from '../entities/duskmoth';
 import { Ironshell } from '../entities/ironshell';
 import { Echo, Hoard, Lantern, Merchant, Relic, Shard, Tablet } from '../entities/pickups';
@@ -15,7 +17,10 @@ import { PKind, type Particles } from '../world/particles';
 import type { World } from '../world/world';
 import { Background } from './background';
 import {
+  drawAshveil,
+  drawBroodling,
   drawDuskmoth,
+  drawEgg,
   drawEcho,
   drawHoard,
   drawMerchant,
@@ -148,6 +153,9 @@ export class Renderer {
       else if (e instanceof Warden) drawWarden(ctx, e, x, y, t);
       else if (e instanceof Spitter) drawSpitter(ctx, e, x, y, t);
       else if (e instanceof Vesper) drawVesper(ctx, e, x, y, t);
+      else if (e instanceof Ashveil) drawAshveil(ctx, e, x, y, t);
+      else if (e instanceof Broodling) drawBroodling(ctx, e, x, y, t);
+      else if (e instanceof BroodEgg) drawEgg(ctx, e, x, y, t);
     }
 
     for (const pr of w.projectiles) drawProjectile(ctx, pr, ix(pr, alpha), iy(pr, alpha), m, t);
