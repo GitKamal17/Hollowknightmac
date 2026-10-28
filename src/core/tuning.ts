@@ -15,15 +15,24 @@ export const PLAYER = {
   w: 18,
   h: 34,
   run: 270,
-  accel: 3000,
-  decel: 3800,
-  airAccel: 2400,
-  airDecel: 1600,
+  // Effectively instant, on the ground and in the air: full speed in one frame,
+  // a dead stop the frame you let go. Momentum here felt slippery.
+  accel: 20000,
+  decel: 20000,
+  airAccel: 20000,
+  airDecel: 20000,
   gravity: 2100,
-  fallGravity: 2400,
-  maxFall: 760,
-  jumpVel: 780,
-  jumpCutVel: 300,
+  fallGravity: 2700,
+  maxFall: 820,
+  // Jumps rise at a constant speed while jump is held (up to jumpHold seconds),
+  // then gravity takes over. Letting go drops the rise to jumpCutVel at once.
+  // Full height stays about 4.5 tiles: 600 * 0.1 + 600^2 / (2 * 2100).
+  jumpRise: 600,
+  jumpHold: 0.1,
+  jumpCutVel: 150,
+  // Even the quickest tap rises this long, so the smallest hop is about a tile, not a twitch.
+  jumpMinRise: 0.05,
+  wallJumpMinRise: 0.1,
   coyote: 0.1,
   jumpBuffer: 0.1,
   actionBuffer: 0.1,
@@ -53,7 +62,8 @@ export const PLAYER = {
   healCost: 33,
   healTime: 0.95,
   doorPopVel: 880,
-  doubleJumpVel: 680,
+  doubleJumpRise: 560,
+  doubleJumpHold: 0.07,
   parryStun: 0.35,
 } as const;
 

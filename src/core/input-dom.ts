@@ -44,23 +44,35 @@ const PAD_BUTTONS: Partial<Record<number, Action[]>> = {
 
 const STICK_DEADZONE = 0.4;
 
+const ARROWS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+const WASD_OTHERS = new Set(['KeyW', 'KeyS', 'KeyD']);
+
 /**
  * Keyboard + gamepad. Presses are latched between polls, so a tap shorter than
  * one simulation step is never lost.
  */
 export class InputManager {
-  private keyHeld = new Set<string>();
+  /** Keys held down, with what each one meant when it was pressed. */
+  private keyHeld = new Map<string, Action[]>();
+  /**
+   * A is "left" for WASD players but heal for arrow-key players (the layout
+   * players of the genre's classics expect). Whichever movement keys were
+   * pressed last decide.
+   */
+  private arrows = false;
   private latched = flags();
   private padPrev = flags();
   onGesture: (() => void) | null = null;
 
   constructor(target: Window) {
     target.addEventListener('keydown', (e) => {
-      const acts = KEYS[e.code];
+      if (ARROWS.has(e.code)) this.arrows = true;
+      else if (WASD_OTHERS.has(e.code)) this.arrows = false;
+      const acts: Action[] | undefined = e.code === 'KeyA' && this.arrows ? ['heal'] : KEYS[e.code];
       if (acts) e.preventDefault();
       this.onGesture?.();
       if (e.repeat) return;
-      this.keyHeld.add(e.code);
+      this.keyHeld.set(e.code, acts ?? []);
       if (acts) for (const a of acts) this.latched[a] = true;
     });
     target.addEventListener('keyup', (e) => {
@@ -91,7 +103,7 @@ export class InputManager {
     const pad = this.padState();
     const held = flags();
     const pressed = flags();
-    for (const code of this.keyHeld) for (const a of KEYS[code] ?? []) held[a] = true;
+    for (const acts of this.keyHeld.values()) for (const a of acts) held[a] = true;
     for (const a of ACTIONS) {
       if (pad[a]) held[a] = true;
       pressed[a] = this.latched[a] || (pad[a] && !this.padPrev[a]);

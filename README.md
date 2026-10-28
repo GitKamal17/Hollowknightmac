@@ -21,7 +21,7 @@ npm run dev        # http://localhost:5173
 ```sh
 npm run build      # strict typecheck + production bundle in dist/
 npm run preview    # serve the production build
-npm test           # 131 unit and simulation tests
+npm test           # 140 unit and simulation tests
 npm run e2e        # headless playthrough with screenshots (see Testing)
 ```
 
@@ -36,13 +36,13 @@ Requires Node 18+.
 | Strike | X / K | X |
 | Aim strike | hold Up or Down | hold Up or Down |
 | Dash (once found) | C / L / Shift | RB / RT |
-| Heal (hold) | V / I | B |
+| Heal (hold) | V / I, or A when you move with the arrow keys | B |
 | Rest at a lantern | Up | Up |
 | Map (hold) | Tab | Select / Back |
 | Pause | Esc / P | Start |
 | Mute | M | |
 
-Heal is on **V / I**, not A: A is "left" in WASD, so it can't also be heal.
+**A** depends on how you move. If you use the arrow keys, A heals (the layout genre veterans expect: arrows, Z jump, X strike, C dash, A heal). If you use WASD, A is "left" and heal stays on V / I. Whichever movement keys you pressed last decide.
 
 ## What's in the game
 
@@ -113,7 +113,7 @@ Every enemy has a temperament, so the same tactic doesn't work everywhere:
 
 ### Core mechanics
 
-- **Movement:** acceleration and deceleration, instant ground turnaround, variable jump height, coyote time (100 ms), jump buffering (100 ms), capped fall speed, wall cling, slide and wall jump, and an unlockable dash that refreshes on landing, clinging or bouncing.
+- **Movement:** no momentum: full speed on the first frame and a dead stop when you let go, on the ground and in the air. Jumps rise at a steady speed for as long as you hold jump (up to about 4.5 tiles) and stop rising the moment you let go; even the quickest tap is a one-tile hop. Falling is faster than rising. Coyote time (100 ms), jump buffering (100 ms), capped fall speed, wall cling (press into a wall to grab it; you stay on until you press away or jump), slide and wall jump, and an unlockable dash that refreshes on landing, clinging or bouncing.
 - **Combat:** side, up and down strikes. A down strike in the air pogos off enemies and thorns. Every hit has hitstop, screen shake, sparks and knockback on both sides. Hits fill an essence meter. Hold heal to spend 33 essence on one mask (a slow channel that breaks if you're hit or let go).
 - **Damage:** 5 masks, 1.3 s of invulnerability with flicker, knockback. Thorns and black water always hurt and return you to the last safe ground.
 - **Death:** your shards stay behind as an *echo* where you last stood safely. You wake at the last lantern. Reach the echo to take them back.
@@ -149,6 +149,7 @@ src/
 
 - **Collision:** landing flush, walls, ceilings, and no tunnelling through a one-tile wall at any speed (including a real dash).
 - **Movement windows:** coyote time accepts a late jump and rejects one that is too late. The jump buffer remembers an early press and forgets one that is too early. Tap vs hold jump height.
+- **Feel:** full speed on the first frame and a dead stop on release (ground and air), full jump height unchanged, the rise stops within a few pixels of letting go, a minimum one-tile hop, height that grows steadily with hold time, walls that hold you once grabbed, and A meaning heal for arrow-key players but left for WASD players.
 - **Combat:** pogo off thorns and off an enemy, damage plus invulnerability, hazard respawn, heal success and heal cancellation, wall cling and wall jump.
 - **Save:** round-trip, corrupt or missing data, storage that throws, booting a world from a save.
 - **Playtest log:** per-room and per-boss counts (time, damage by source, deaths, heals, shards earned and spent), surviving quit-to-title and a reload, the pause-menu export, corrupt data, and recording nothing without `?telemetry`.

@@ -9,7 +9,7 @@ const CONTROLS: [string, string, string][] = [
   ['Strike', 'X / K', 'X'],
   ['Aim strike', 'hold Up or Down', 'hold Up or Down'],
   ['Dash (once found)', 'C / L / Shift', 'RB / RT'],
-  ['Heal (hold, costs essence)', 'V / I', 'B'],
+  ['Heal (hold, costs essence)', 'V / I (A with arrows)', 'B'],
   ['Rest at a lantern', 'Up', 'Up'],
   ['Map (hold)', 'Tab', 'Select'],
   ['Pause', 'Esc / P', 'Start'],

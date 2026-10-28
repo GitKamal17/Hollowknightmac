@@ -43,6 +43,12 @@ export class Player extends Entity {
   attackBuffer = 0;
   dashBuffer = 0;
   jumping = false;
+  /** Speed and time left of the current jump's held, constant-speed rise. */
+  private rise = 0;
+  private riseT = 0;
+  /** Time since the current jump began, and how long it rises regardless of input. */
+  private jumpAge = 0;
+  private minRise = 0;
 
   wallDir: -1 | 0 | 1 = 0;
   wallSliding = false;
@@ -183,10 +189,11 @@ export class Player extends Entity {
 
     // Walls
     this.wallDir = this.touchingWall(host.map);
+    // Pressing into a wall grabs it; after that you stay on it until you press away or jump.
     const cling =
       !this.grounded &&
       this.wallDir !== 0 &&
-      dir === this.wallDir &&
+      (dir === this.wallDir || (this.wallSliding && dir !== -this.wallDir)) &&
       this.vy > -P.wallClingMaxRise &&
       this.inputLock <= 0;
     if (cling && !this.wallSliding) {
@@ -202,18 +209,24 @@ export class Player extends Entity {
     }
 
     // Jumping
+    this.jumpAge += DT;
     if (this.jumpBuffer > 0) {
       if (this.grounded || this.coyote > 0) this.jump(host);
       else if (this.wallSliding || this.wallDir !== 0 || this.wallCoyote > 0) this.wallJump(host);
       else if (this.wingsUnlocked && this.airJumps > 0) this.doubleJump(host);
     }
-    if (this.jumping && !inp.held.jump && this.vy < -P.jumpCutVel) {
+    const holding = inp.held.jump || this.jumpAge + 1e-6 < this.minRise;
+    if (this.jumping && !holding && this.vy < -P.jumpCutVel) {
       this.vy = -P.jumpCutVel;
       this.jumping = false;
     }
     if (this.vy >= 0) this.jumping = false;
 
     this.applyGravity(this.wallSliding);
+    if (this.jumping && this.riseT > 0 && holding) {
+      this.vy = -this.rise;
+      this.riseT -= DT;
+    } else this.riseT = 0;
 
     // Dash
     if (this.dashBuffer > 0 && this.dashUnlocked && this.dashCd <= 0 && (this.grounded || this.airDash)) {
@@ -243,7 +256,11 @@ export class Player extends Entity {
   }
 
   private jump(host: PlayerHost): void {
-    this.vy = -P.jumpVel;
+    this.vy = -P.jumpRise;
+    this.rise = P.jumpRise;
+    this.riseT = P.jumpHold;
+    this.jumpAge = 0;
+    this.minRise = P.jumpMinRise;
     this.jumping = true;
     this.jumpBuffer = 0;
     this.coyote = 0;
@@ -253,7 +270,11 @@ export class Player extends Entity {
   }
 
   private doubleJump(host: PlayerHost): void {
-    this.vy = -P.doubleJumpVel;
+    this.vy = -P.doubleJumpRise;
+    this.rise = P.doubleJumpRise;
+    this.riseT = P.doubleJumpHold;
+    this.jumpAge = 0;
+    this.minRise = P.jumpMinRise;
     this.airJumps--;
     this.jumping = true;
     this.jumpBuffer = 0;
@@ -268,6 +289,9 @@ export class Player extends Entity {
     this.facing = -wall as 1 | -1;
     this.inputLock = P.wallJumpLock;
     this.jumping = true;
+    this.riseT = 0;
+    this.jumpAge = 0;
+    this.minRise = P.wallJumpMinRise;
     this.jumpBuffer = 0;
     this.wallCoyote = 0;
     this.wallSliding = false;
