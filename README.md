@@ -21,7 +21,7 @@ npm run dev        # http://localhost:5173
 ```sh
 npm run build      # strict typecheck + production bundle in dist/
 npm run preview    # serve the production build
-npm test           # 114 unit and simulation tests
+npm test           # 126 unit and simulation tests
 npm run e2e        # headless playthrough with screenshots (see Testing)
 ```
 
@@ -38,6 +38,7 @@ Requires Node 18+.
 | Dash (once found) | C / L / Shift | RB / RT |
 | Heal (hold) | V / I | B |
 | Rest at a lantern | Up | Up |
+| Map (hold) | Tab | Select / Back |
 | Pause | Esc / P | Start |
 | Mute | M | |
 
@@ -52,6 +53,14 @@ Eighteen connected rooms in three areas, roughly 30-45 minutes for a first run.
 **The Lowmarket** (behind a seal that breaks when the Warden falls): The Ember Stair → Lowmarket (hub: lantern + merchant) → The Needle Spires → Featherfall Nest (**double jump**) → back to Lowmarket and up The Long Ascent (double-jump climb) → Vesper's Court (**boss: Vesper, the Duskblade**). A secret room, Hoarder's Hollow, sits above the Spires and needs the double jump.
 
 **The Gloom** (behind a seal in Vesper's Court that breaks when she yields): The Hanging Gloom (a thorn pit swarming with broodlings) → Cradle Lantern (lantern + merchant, a short walk from the boss) → The Brood Nest (**boss: Mother Ashveil**).
+
+### The map
+
+Hold **Tab** (or **Select** on a gamepad) to see every room you've been in. Rooms are laid out by how their doors connect: a room behind a right-hand door sits to its right, with the two doors lined up. Each room is drawn in its real shape, the current room is highlighted with a marker where you stand, and lanterns, Peddlers and bosses get icons (a beaten boss is crossed out). Doors you haven't gone through yet show as dashed stubs. The world keeps running while the map is up; you just stand still to read it.
+
+The rooms weren't designed on one shared grid, so when a room's natural place would overlap one already placed, it slides further out along its door. The doors stay lined up and the corridor between them just gets longer.
+
+Hint tablets stand beside both seals, saying which boss holds each one, and one by the entrance of Vesper's Court points east to the way into the Gloom.
 
 ### Shards and the Peddler
 
@@ -109,7 +118,7 @@ Every enemy has a temperament, so the same tactic doesn't work everywhere:
 - **Damage:** 5 masks, 1.3 s of invulnerability with flicker, knockback. Thorns and black water always hurt and return you to the last safe ground.
 - **Death:** your shards stay behind as an *echo* where you last stood safely. You wake at the last lantern. Reach the echo to take them back.
 - **Double jump** (Twin Feather): one extra jump in the air, refreshed on landing, clinging or bouncing.
-- **Saving:** lantern, abilities, bosses, upgrades, the hoard, shards and echo are saved to `localStorage`. If storage is blocked (private browsing), the game still runs; it just doesn't persist.
+- **Saving:** lantern, abilities, bosses, upgrades, the hoard, shards, echo and visited rooms are saved to `localStorage`. If storage is blocked (private browsing), the game still runs; it just doesn't persist.
 
 ## Architecture
 
@@ -119,10 +128,10 @@ src/
               camera, seeded RNG, WebAudio synth, tuning constants
   physics/    tile map and swept AABB collision with sub-stepping
   entities/   player state machine, enemies, boss, projectiles, pickups
-  world/      room data (ASCII), room parser, World (rules and combat), save,
+  world/      room data (ASCII), room parser, map layout, World (rules and combat), save,
               playtest log, particles
   render/     chunk-cached terrain, parallax background, procedural sprites
-  ui/         HUD, title / pause / controls screens
+  ui/         HUD, map overlay, title / pause / controls screens
   game.ts     scene flow (title, play, pause)
   main.ts     browser bootstrap
 ```
@@ -143,6 +152,8 @@ src/
 - **Combat:** pogo off thorns and off an enemy, damage plus invulnerability, hazard respawn, heal success and heal cancellation, wall cling and wall jump.
 - **Save:** round-trip, corrupt or missing data, storage that throws, booting a world from a save.
 - **Playtest log:** per-room and per-boss counts (time, damage by source, deaths, heals, shards earned and spent), surviving quit-to-title and a reload, the pause-menu export, corrupt data, and recording nothing without `?telemetry`.
+- **Map:** every room is placed once at its own size, no two rooms overlap, every door leads to a room on that side with the two doors lined up, a room whose spot is taken slides out along its door, unreachable rooms still get a place, and lantern / merchant / boss icons land in the right rooms. Visited rooms are recorded once, saved, reloaded, and old saves without the list load cleanly. Holding the map opens it and stops the player; it won't open over a message.
+- **Hint tablets:** every seal has a tablet beside it, and Vesper's Court has one pointing to the Gloom.
 - **Death:** shards become an echo, you wake at the lantern, touching the echo returns them.
 - **Shop:** prices, levels, sold-out and too-poor cases, stats applied, persistence, and the Up → buy → leave flow.
 - **Personalities:** the Warden shrugs off a 4-hit combo and bucks a pogo-camper; Ironshells turn faster after back hits; skitters split into bold and timid.
@@ -158,7 +169,7 @@ src/
   - The seal in Vesper's Court holds until she yields, and The Hanging Gloom can be crossed perch to perch.
   - The Warden and Vesper fights run to completion on three seeds each, with no state lasting long enough to look stuck, the gates reopening, and the victory saved. The Warden is seen using every attack. Against a bot that keeps swinging at her face, Vesper is seen parrying it and backflipping out of its combos.
 
-`npm run e2e` starts the dev server, opens Chromium with Playwright, and plays: starts a new game, walks and fights through the first room into the second **using real key presses**, rests at the lantern, takes the dash relic, jumps and dashes across the chasm, fights the Warden into phase two, then continues into the second area: buys a Mask Shard from the Peddler, takes the Twin Feather, measures the double jump, fights Vesper, then visits the Gloom and fights Mother Ashveil through all three phases. It runs with `?telemetry` and exports the playtest log from the pause menu mid-fight. It saves screenshots to `screenshots/` and fails on any console error or failed check. It needs Playwright, which is deliberately not a dependency (it downloads a browser):
+`npm run e2e` starts the dev server, opens Chromium with Playwright, and plays: starts a new game, walks and fights through the first room into the second **using real key presses**, rests at the lantern, takes the dash relic, jumps and dashes across the chasm, fights the Warden into phase two, then continues into the second area: buys a Mask Shard from the Peddler, takes the Twin Feather, measures the double jump, fights Vesper, then visits the Gloom, holds Tab to screenshot the map (checking it lists every room visited so far and that the list is in `localStorage`), and fights Mother Ashveil through all three phases. It runs with `?telemetry` and exports the playtest log from the pause menu mid-fight. It saves screenshots to `screenshots/` and fails on any console error or failed check. It needs Playwright, which is deliberately not a dependency (it downloads a browser):
 
 ```sh
 npm i -D playwright && npx playwright install chromium
@@ -186,7 +197,7 @@ The log lives in `localStorage` under `gloamwell.playtest.v1`, apart from the sa
 
 Being straight about what this is and isn't:
 
-- **It's still small.** Eighteen rooms, five enemy types, three bosses, two abilities, four upgrades. No map, charm system, dialogue, or music score.
+- **It's still small.** Eighteen rooms, five enemy types, three bosses, two abilities, four upgrades. No charm system, dialogue, or music score. The map shows rooms, not a hand-drawn chart, and it can't be scrolled or zoomed.
 - **The art is programmer art.** It's moody and readable, but procedural vector shapes are nowhere near hand-drawn quality. This is the biggest gap between this and the game it's inspired by.
 - **The feel numbers were tuned by reasoning and bots, not by people.** Bots can prove the windows exist and that each room is beatable. They can't tell you whether the jump feels floaty. This needs human playtesting, and `src/core/tuning.ts` is where to adjust.
 - **All three boss fights are only proven completable with a god-mode bot.** They haven't been balanced against a real player. Vesper's parry odds, the Warden's grudge thresholds and Ashveil's grief/flinch tuning are guesses that need playtesting.

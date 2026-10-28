@@ -41,7 +41,7 @@ export class Hud {
 
     if (w.bossActive && w.boss) this.bossBar(ctx, w.boss.hp / w.boss.maxHp, w.boss.title);
     else this.shownBossHp = 1;
-    if (w.banner) this.banner(ctx, w);
+    if (w.banner && w.mapFade < 1) this.banner(ctx, w);
     if (p.hp === 1 && p.alive) {
       const a = 0.25 + Math.sin(t * 5) * 0.12;
       const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.3, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.9);

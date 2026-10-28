@@ -16,6 +16,8 @@ export interface SaveData {
   cache: boolean;
   /** Levels bought from the merchant. */
   upgrades: Record<UpgradeId, number>;
+  /** Rooms the player has set foot in, in the order first entered (drawn on the map). */
+  visited: string[];
 }
 
 /** The subset of the Web Storage API we use, so tests can pass a fake. */
@@ -40,6 +42,7 @@ export function newSave(): SaveData {
     matronDefeated: false,
     cache: false,
     upgrades: { mask: 0, blade: 0, focus: 0, vessel: 0 },
+    visited: [],
   };
 }
 
@@ -58,6 +61,8 @@ function validate(raw: unknown): SaveData | null {
   s.cache = r.cache === true;
   const u = (r.upgrades ?? {}) as Record<string, unknown>;
   for (const id of UPGRADE_IDS) s.upgrades[id] = isNum(u[id]) ? Math.max(0, Math.min(3, Math.floor(u[id]))) : 0;
+  // Saves from before the map have no list; they start with an empty one.
+  if (Array.isArray(r.visited)) s.visited = [...new Set(r.visited.filter((id): id is string => typeof id === 'string'))];
   s.shards = isNum(r.shards) ? Math.max(0, Math.floor(r.shards)) : 0;
   const b = r.bench as Record<string, unknown> | null;
   if (b && typeof b.room === 'string' && isNum(b.x) && isNum(b.y)) s.bench = { room: b.room, x: b.x, y: b.y };

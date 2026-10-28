@@ -267,6 +267,9 @@ export const ROOMS: Record<string, RoomDef> = {
     theme: 'arena',
     links: { '7': 'gap', '8': 'descent' },
     bossTriggerX: 7,
+    texts: [
+      'This seal is bound to the Warden. While it lives, the way east stays shut.',
+    ],
     map: [
       '################################',
       '################################',
@@ -282,7 +285,7 @@ export const ROOMS: Record<string, RoomDef> = {
       '##............................##',
       '7G............................S8',
       '7G............................S8',
-      '7G....................B.......S8',
+      '7G....................B.....T.S8',
       '################################',
       '################################',
       '################################',
@@ -502,6 +505,10 @@ export const ROOMS: Record<string, RoomDef> = {
     links: { 'z': 'heights', 'k': 'gloom' },
     sealedBy: 'vesper',
     bossTriggerX: 7,
+    texts: [
+      'Beyond her court, past the eastern seal, a new way leads down into the Gloom.',
+      'This seal answers only to Vesper. Best her blade and it will open.',
+    ],
     map: [
       '##################################',
       '##################################',
@@ -517,7 +524,7 @@ export const ROOMS: Record<string, RoomDef> = {
       '##..............................##',
       'zG..............................Sk',
       'zG..............................Sk',
-      'zG.......................V......Sk',
+      'zG.T.....................V....T.Sk',
       '##################################',
       '##################################',
       '##################################',

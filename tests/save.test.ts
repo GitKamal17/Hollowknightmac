@@ -11,6 +11,7 @@ describe('save / load', () => {
     s.bossDefeated = true;
     s.shards = 123;
     s.echo = { room: 'thorns', x: 400, y: 300, amount: 17 };
+    s.visited = ['gate', 'roots', 'shaft'];
     expect(writeSave(kv, s)).toBe(true);
     expect(loadSave(kv)).toEqual(s);
   });

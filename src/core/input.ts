@@ -10,6 +10,7 @@ export const ACTIONS = [
   'pause',
   'confirm',
   'mute',
+  'map',
 ] as const;
 
 export type Action = (typeof ACTIONS)[number];
