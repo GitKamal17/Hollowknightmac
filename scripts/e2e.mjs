@@ -78,7 +78,9 @@ try {
   let i = 0;
   let midShot = false;
   while (Date.now() - t0 < 32000 && (await room()) === 'gate') {
-    if (i % 3 === 0) await tap('z', 180);
+    // Jump only from the ground: the exit is a gap under the east wall, and
+    // jumping while clinging to that wall wall-jumps up it forever.
+    if (i % 3 === 0 && (await page.evaluate(() => window.__gloam.world.player.grounded))) await tap('z', 180);
     else await tap('x', 40);
     await wait(90);
     if (!midShot && Date.now() - t0 > 2600) {
@@ -186,8 +188,10 @@ try {
   const fightStart = Date.now();
   let shots = 0;
   while (Date.now() - fightStart < 9000) {
+    // Keep the player alive: dying respawns at the lantern and loses the boss.
     const toward = await page.evaluate(() => {
       const w = window.__gloam.world;
+      if (w.player.hp < 3) w.player.hp = w.player.maxHp;
       if (!w.boss) return 0;
       const d = w.boss.cx - w.player.cx;
       return Math.abs(d) > 70 ? Math.sign(d) : 0;
@@ -285,11 +289,20 @@ try {
     return !r || w.player.cx > r.cx - 110;
   }, null, { polling: 'raf', timeout: 8000 });
   await page.keyboard.up('ArrowRight');
-  for (let k = 0; k < 6 && !(await page.evaluate(() => window.__gloam.world.modal !== null)); k++) {
-    await page.keyboard.down('ArrowRight');
-    await tap('z', 220);
-    await wait(120);
-    await page.keyboard.up('ArrowRight');
+  // A hop can carry past the relic, so steer toward it each time: hop from the
+  // floor, walk once on the pedestal.
+  for (let k = 0; k < 12 && !(await page.evaluate(() => window.__gloam.world.modal !== null)); k++) {
+    const r = await page.evaluate(() => {
+      const w = window.__gloam.world;
+      const relic = w.pickups.find((p) => p.kind === 'relic');
+      return relic ? { dx: relic.cx - w.player.cx, below: w.player.y + w.player.h > relic.y + relic.h + 2 } : null;
+    });
+    if (!r) break;
+    const key = r.dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+    await page.keyboard.down(key);
+    if (r.below) await tap('z', 220);
+    else await wait(100);
+    await page.keyboard.up(key);
     await wait(250);
   }
   await wait(800);
@@ -324,21 +337,33 @@ try {
   await page.keyboard.up('ArrowRight');
   await wait(1400);
   await shot('21-vesper-intro');
+  // She parries front strikes while on guard (stance, recover) and backsteps
+  // when crowded, so blind swinging can land nothing for seconds. Stay close
+  // and strike only when she is in reach and committed to something else.
   const duelStart = Date.now();
   let vshots = 0;
-  while (Date.now() - duelStart < 8000) {
-    await page.evaluate(() => { const p = window.__gloam.world.player; if (p.hp < 3) p.hp = p.maxHp; });
-    const toward = await page.evaluate(() => {
+  let vesperHurt = false;
+  while (Date.now() - duelStart < 6000 || (!vesperHurt && Date.now() - duelStart < 25000)) {
+    const st = await page.evaluate(() => {
       const w = window.__gloam.world;
-      if (!w.boss) return 0;
-      const d = w.boss.cx - w.player.cx;
-      return Math.abs(d) > 50 ? Math.sign(d) : 0;
+      const b = w.boss;
+      if (w.player.hp < 3) w.player.hp = w.player.maxHp;
+      return b ? { dx: b.cx - w.player.cx, state: b.state, hurt: b.hp < b.maxHp } : null;
     });
-    const key = toward > 0 ? 'ArrowRight' : 'ArrowLeft';
-    if (toward !== 0) await page.keyboard.down(key);
-    await tap('x', 40);
-    await tap('z', 120);
-    if (toward !== 0) await page.keyboard.up(key);
+    if (!st) break;
+    vesperHurt ||= st.hurt;
+    const key = st.dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+    const open = !['dormant', 'intro', 'stance', 'recover', 'dying'].includes(st.state);
+    if (open && Math.abs(st.dx) < 72) {
+      await page.keyboard.down(key);
+      await tap('x', 40);
+      await page.keyboard.up(key);
+      await wait(60);
+    } else if (Math.abs(st.dx) > 60) {
+      await page.keyboard.down(key);
+      await wait(80);
+      await page.keyboard.up(key);
+    } else await wait(30);
     if ((Date.now() - duelStart > 2500 && vshots === 0) || (Date.now() - duelStart > 5500 && vshots === 1)) {
       await shot(`22-vesper-fight-${++vshots}`);
     }
@@ -404,28 +429,46 @@ try {
     }, frac);
 
   await fightAshveil(4000, '26-ashveil-fight');
-  // She keeps her distance, so wait for her to dive into reach, then strike.
+  // She keeps her distance, so stay under her and wait for a dive. The dive
+  // crosses reach in a frame or two, and her touch cancels a swing, so keep
+  // the player in i-frames, watch every frame, and strike up as she rises
+  // (or sideways if she is level).
+  const diving = ['diveWind', 'dive', 'rise'];
   const hpBefore = await page.evaluate(() => window.__gloam.world.boss.hp);
   const swingStart = Date.now();
   while (Date.now() - swingStart < 20000 && (await page.evaluate(() => window.__gloam.world.boss.hp)) === hpBefore) {
     const st = await page.evaluate(() => {
       const w = window.__gloam.world;
-      const b = w.boss;
       w.player.hp = w.player.maxHp;
-      return { dx: b.cx - w.player.cx, dy: b.cy - w.player.cy, state: b.state };
+      w.player.invuln = 1;
+      return { dx: w.boss.cx - w.player.cx, state: w.boss.state };
     });
-    const key = st.dx > 0 ? 'ArrowRight' : 'ArrowLeft';
-    if (Math.abs(st.dx) < 110 && Math.abs(st.dy) < 110) {
+    if (diving.includes(st.state)) {
+      const dir = await page
+        .waitForFunction((diving) => {
+          const w = window.__gloam.world;
+          const b = w.boss;
+          const p = w.player;
+          p.invuln = 1;
+          if (!b || !diving.includes(b.state)) return 'gone';
+          const dx = b.cx - p.cx;
+          const dy = b.cy - p.cy;
+          if (Math.abs(dx) < 50 && dy < -30 && dy > -100) return 'ArrowUp';
+          if (Math.abs(dx) < 80 && dy >= -30 && dy < 30) return dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+          return false;
+        }, diving, { polling: 'raf', timeout: 3000 })
+        .then((h) => h.jsonValue())
+        .catch(() => 'gone');
+      if (dir !== 'gone') {
+        await page.keyboard.down(dir);
+        await tap('x', 40);
+        await page.keyboard.up(dir);
+        await wait(100);
+      }
+    } else if (Math.abs(st.dx) > 40) {
+      const key = st.dx > 0 ? 'ArrowRight' : 'ArrowLeft';
       await page.keyboard.down(key);
-      await wait(16);
-      await page.keyboard.up(key);
-      if (st.dy < -30) await page.keyboard.down('ArrowUp');
-      await tap('x', 40);
-      if (st.dy < -30) await page.keyboard.up('ArrowUp');
-      await wait(120);
-    } else if (Math.abs(st.dx) > 60) {
-      await page.keyboard.down(key);
-      await wait(80);
+      await wait(60);
       await page.keyboard.up(key);
     } else await wait(30);
   }
