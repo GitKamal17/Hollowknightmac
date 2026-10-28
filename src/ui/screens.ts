@@ -11,6 +11,7 @@ const CONTROLS: [string, string, string][] = [
   ['Dash (once found)', 'C / L / Shift', 'RB / RT'],
   ['Heal (hold, costs essence)', 'V / I', 'B'],
   ['Rest at a lantern', 'Up', 'Up'],
+  ['Map (hold)', 'Tab', 'Select'],
   ['Pause', 'Esc / P', 'Start'],
   ['Mute', 'M', ''],
 ];
