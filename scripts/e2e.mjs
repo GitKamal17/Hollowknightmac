@@ -360,6 +360,24 @@ try {
   await wait(1300);
   await shot('24-cradle');
 
+  console.log('The map (hold Tab)');
+  await page.keyboard.down('Tab');
+  await wait(450);
+  const map = await page.evaluate(() => {
+    const w = window.__gloam.world;
+    return { open: w.mapOpen, fade: w.mapFade, visited: w.save.visited };
+  });
+  check(map.open && map.fade === 1, 'holding Tab opens the map');
+  await shot('29-map');
+  await page.keyboard.up('Tab');
+  await wait(300);
+  check(!(await page.evaluate(() => window.__gloam.world.mapOpen)), 'releasing Tab closes the map');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('gloamwell.save.v1')).visited);
+  check(
+    map.visited.length >= 17 && map.visited.includes('cradle') && !map.visited.includes('brood') && stored.join() === map.visited.join(),
+    `every room so far is on the map and saved (${map.visited.length}: ${map.visited.join(', ')})`,
+  );
+
   console.log('Mother Ashveil');
   await warp('brood', 'o');
   await wait(300);

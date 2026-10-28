@@ -12,6 +12,7 @@ import { Warden } from '../entities/warden';
 import type { Game } from '../game';
 import { Tile, type TileMap } from '../physics/tilemap';
 import { Hud, worldLabel } from '../ui/hud';
+import { drawMap } from '../ui/map';
 import { drawPause, drawTitle } from '../ui/screens';
 import { PKind, type Particles } from '../world/particles';
 import type { World } from '../world/world';
@@ -192,6 +193,7 @@ export class Renderer {
       ctx.fillStyle = `rgba(0,0,0,${clamp(w.fade, 0, 1)})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+    drawMap(ctx, w, t);
     this.hud.shop(ctx, w, t);
     this.hud.modal(ctx, w, t);
   }

@@ -22,6 +22,17 @@ describe('room data', () => {
     });
   }
 
+  it('every seal has a hint tablet beside it', () => {
+    for (const def of Object.values(ROOMS)) {
+      const room = parseRoom(def);
+      const seals = def.map.flatMap((row, ty) => [...row].flatMap((ch, tx) => (ch === 'S' ? [{ tx, ty }] : [])));
+      if (!seals.length) continue;
+      const near = room.spawns.find((s) => s.kind === 'T' && seals.some((c) => Math.abs(c.tx - s.tx) <= 4 && Math.abs(c.ty - s.ty) <= 2));
+      expect(near, `${def.id} has no tablet by its seal`).toBeDefined();
+    }
+    expect(parseRoom(ROOMS.duel).spawns.some((s) => s.kind === 'T' && /Gloom/.test(s.text ?? ''))).toBe(true);
+  });
+
   it('the start room has a player start', () => {
     expect(parseRoom(ROOMS[START_ROOM]).spawns.some((s) => s.kind === 'P')).toBe(true);
   });

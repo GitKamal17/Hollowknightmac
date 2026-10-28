@@ -24,6 +24,7 @@ const KEYS: Record<string, Action[]> = {
   KeyP: ['pause'],
   Enter: ['confirm'],
   KeyM: ['mute'],
+  Tab: ['map'],
 };
 
 // Standard gamepad mapping (Xbox naming).
@@ -33,6 +34,7 @@ const PAD_BUTTONS: Partial<Record<number, Action[]>> = {
   2: ['attack'], // X
   5: ['dash'], // RB
   7: ['dash'], // RT
+  8: ['map'], // Select / Back / View
   9: ['pause'], // Start
   12: ['up'],
   13: ['down'],

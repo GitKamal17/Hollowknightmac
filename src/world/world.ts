@@ -1,5 +1,5 @@
 import { Camera } from '../core/camera';
-import type { InputState } from '../core/input';
+import { NO_INPUT, type InputState } from '../core/input';
 import { approach, overlap, type Rect } from '../core/math';
 import { Rng } from '../core/rng';
 import { DT, HITSTOP, PLAYER, TILE } from '../core/tuning';
@@ -16,6 +16,7 @@ import { Spitter } from '../entities/spitter';
 import { Vesper } from '../entities/vesper';
 import { Warden } from '../entities/warden';
 import type { Hazard, TileMap } from '../physics/tilemap';
+import { layoutMap, type MapLayout } from './map';
 import { Particles } from './particles';
 import { findDoor, parseRoom, type Room, type RoomDef, type Side } from './room';
 import { ROOMS, START_ROOM } from './rooms';
@@ -90,7 +91,13 @@ export class World implements PlayerHost {
   /** Open merchant panel. */
   shop: { sel: number; t: number; msg: string; msgT: number } | null = null;
   nearTablet: Tablet | null = null;
-  private visited = new Set<string>();
+  /** The map is held open (the player stands still while it is). */
+  mapOpen = false;
+  /** 0..1 fade of the map overlay. */
+  mapFade = 0;
+  private layout: MapLayout | null = null;
+  /** Rooms whose name banner has shown this session. */
+  private bannered = new Set<string>();
   private deathSpot: { room: string; x: number; y: number } | null = null;
   private shardSfxCd = 0;
   private readonly soulTarget: { x: number; y: number };
@@ -115,6 +122,12 @@ export class World implements PlayerHost {
 
   get map(): TileMap {
     return this.room.map;
+  }
+
+  /** Where every room sits on the map. Worked out once, on first use. */
+  get mapLayout(): MapLayout {
+    this.layout ??= layoutMap(this.rooms, this.rooms[START_ROOM] ? START_ROOM : Object.keys(this.rooms)[0]);
+    return this.layout;
   }
 
   sfx(name: string): void {
@@ -204,8 +217,9 @@ export class World implements PlayerHost {
     const echo = this.save.echo;
     if (echo && echo.room === id) this.pickups.push(new Echo(echo.x, echo.y, echo.amount));
 
-    if (!this.visited.has(id)) {
-      this.visited.add(id);
+    if (!this.save.visited.includes(id)) this.save.visited.push(id);
+    if (!this.bannered.has(id)) {
+      this.bannered.add(id);
       this.banner = { kind: 'area', title: def.name, sub: '', t: 0, dur: 2.6 };
     }
   }
@@ -305,8 +319,12 @@ export class World implements PlayerHost {
 
   // ---- main step --------------------------------------------------------------
 
-  update(inp: InputState): void {
+  update(raw: InputState): void {
     const p = this.player;
+    this.mapOpen = raw.held.map && !this.shop && !this.modal && !this.transition && p.alive;
+    this.mapFade = approach(this.mapFade, this.mapOpen ? 1 : 0, DT * 8);
+    // The world goes on while the map is up; the player just stops to read it.
+    const inp = this.mapOpen ? NO_INPUT : raw;
     p.noteInput(inp);
 
     if (this.shop) {
