@@ -21,7 +21,7 @@ npm run dev        # http://localhost:5173
 ```sh
 npm run build      # strict typecheck + production bundle in dist/
 npm run preview    # serve the production build
-npm test           # 126 unit and simulation tests
+npm test           # 131 unit and simulation tests
 npm run e2e        # headless playthrough with screenshots (see Testing)
 ```
 
