@@ -97,7 +97,7 @@ export class Renderer {
       drawTitle(ctx, game.time, game.titleItems, game.menu, game.showControls, game.audio.muted);
     } else {
       this.drawWorld(game.world, alpha);
-      if (game.scene === 'pause') drawPause(ctx, game.pauseItems, game.pauseMenu);
+      if (game.scene === 'pause') drawPause(ctx, game.pauseItems, game.pauseMenu, game.pauseNote);
     }
     ctx.restore();
 

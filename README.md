@@ -21,7 +21,7 @@ npm run dev        # http://localhost:5173
 ```sh
 npm run build      # strict typecheck + production bundle in dist/
 npm run preview    # serve the production build
-npm test           # 126 unit and simulation tests
+npm test           # 131 unit and simulation tests
 npm run e2e        # headless playthrough with screenshots (see Testing)
 ```
 
@@ -128,7 +128,8 @@ src/
               camera, seeded RNG, WebAudio synth, tuning constants
   physics/    tile map and swept AABB collision with sub-stepping
   entities/   player state machine, enemies, boss, projectiles, pickups
-  world/      room data (ASCII), room parser, map layout, World (rules and combat), save, particles
+  world/      room data (ASCII), room parser, map layout, World (rules and combat), save,
+              playtest log, particles
   render/     chunk-cached terrain, parallax background, procedural sprites
   ui/         HUD, map overlay, title / pause / controls screens
   game.ts     scene flow (title, play, pause)
@@ -150,6 +151,7 @@ src/
 - **Movement windows:** coyote time accepts a late jump and rejects one that is too late. The jump buffer remembers an early press and forgets one that is too early. Tap vs hold jump height.
 - **Combat:** pogo off thorns and off an enemy, damage plus invulnerability, hazard respawn, heal success and heal cancellation, wall cling and wall jump.
 - **Save:** round-trip, corrupt or missing data, storage that throws, booting a world from a save.
+- **Playtest log:** per-room and per-boss counts (time, damage by source, deaths, heals, shards earned and spent), surviving quit-to-title and a reload, the pause-menu export, corrupt data, and recording nothing without `?telemetry`.
 - **Map:** every room is placed once at its own size, no two rooms overlap, every door leads to a room on that side with the two doors lined up, a room whose spot is taken slides out along its door, unreachable rooms still get a place, and lantern / merchant / boss icons land in the right rooms. Visited rooms are recorded once, saved, reloaded, and old saves without the list load cleanly. Holding the map opens it and stops the player; it won't open over a message.
 - **Hint tablets:** every seal has a tablet beside it, and Vesper's Court has one pointing to the Gloom.
 - **Death:** shards become an echo, you wake at the lantern, touching the echo returns them.
@@ -167,14 +169,29 @@ src/
   - The seal in Vesper's Court holds until she yields, and The Hanging Gloom can be crossed perch to perch.
   - The Warden and Vesper fights run to completion on three seeds each, with no state lasting long enough to look stuck, the gates reopening, and the victory saved. The Warden is seen using every attack. Against a bot that keeps swinging at her face, Vesper is seen parrying it and backflipping out of its combos.
 
-`npm run e2e` starts the dev server, opens Chromium with Playwright, and plays: starts a new game, walks and fights through the first room into the second **using real key presses**, rests at the lantern, takes the dash relic, jumps and dashes across the chasm, fights the Warden into phase two, then continues into the second area: buys a Mask Shard from the Peddler, takes the Twin Feather, measures the double jump, fights Vesper, then visits the Gloom, holds Tab to screenshot the map (checking it lists every room visited so far and that the list is in `localStorage`), and fights Mother Ashveil through all three phases. It saves screenshots to `screenshots/` and fails on any console error or failed check. It needs Playwright, which is deliberately not a dependency (it downloads a browser):
+`npm run e2e` starts the dev server, opens Chromium with Playwright, and plays: starts a new game, walks and fights through the first room into the second **using real key presses**, rests at the lantern, takes the dash relic, jumps and dashes across the chasm, fights the Warden into phase two, then continues into the second area: buys a Mask Shard from the Peddler, takes the Twin Feather, measures the double jump, fights Vesper, then visits the Gloom, holds Tab to screenshot the map (checking it lists every room visited so far and that the list is in `localStorage`), and fights Mother Ashveil through all three phases. It runs with `?telemetry` and exports the playtest log from the pause menu mid-fight. It saves screenshots to `screenshots/` and fails on any console error or failed check. It needs Playwright, which is deliberately not a dependency (it downloads a browser):
 
 ```sh
 npm i -D playwright && npx playwright install chromium
 npm run e2e
 ```
 
-URL flags: `?debug` shows FPS and exposes `window.__gloam` (warp between rooms, unlock dash), which the e2e script uses. `?hitboxes` draws collision boxes.
+URL flags: `?debug` shows FPS and exposes `window.__gloam` (warp between rooms, unlock dash), which the e2e script uses. `?hitboxes` draws collision boxes. `?telemetry` records a playtest log (below).
+
+## Playtest logging
+
+Open the game with `?telemetry` (for example `http://localhost:5173/?telemetry`) and it keeps a log of how the run is going, without changing how anything plays. Pause and choose **Export playtest** to download it as `gloamwell-playtest-<date>-<time>.json`.
+
+For every room, and for every boss across all attempts, it counts:
+
+- `time`: seconds spent. A room's time includes menus opened there; a boss's time runs from the gates closing to the win or death.
+- `deaths` and `killedBy`
+- `damage` (masks lost) and `damageBy`, keyed by what dealt it: `contact:skitter`, `projectile:orb`, `hazard:spike`
+- `heals`: heals completed, one mask each
+- `shardsEarned` (a boss's are its own drop) and `shardsSpent`
+- Bosses also have `attempts` and `wins`.
+
+The log lives in `localStorage` under `gloamwell.playtest.v1`, apart from the save. It keeps adding up across reloads and new games until you clear site data.
 
 ## Known limitations
 
