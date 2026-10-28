@@ -17,10 +17,11 @@ import { Vesper } from '../entities/vesper';
 import { Warden } from '../entities/warden';
 import type { Hazard, TileMap } from '../physics/tilemap';
 import { Particles } from './particles';
+import type { Playtest } from './playtest';
 import { findDoor, parseRoom, type Room, type RoomDef, type Side } from './room';
 import { ROOMS, START_ROOM } from './rooms';
 import { newSave, writeSave, type KV, type SaveData } from './save';
-import { buy, SHOP, statsFor } from './shop';
+import { buy, nextCost, SHOP, statsFor } from './shop';
 
 export type SfxFn = (name: string) => void;
 
@@ -32,6 +33,8 @@ export interface WorldOptions {
   seed?: number;
   /** Room to start in when the save has no lantern. */
   startRoom?: string;
+  /** Opt-in playtest recorder; null when telemetry is off. */
+  playtest?: Playtest | null;
 }
 
 interface Transition {
@@ -73,6 +76,9 @@ export class World implements PlayerHost {
   save: SaveData;
   private store: KV | null;
   private sfxOut: SfxFn;
+  readonly playtest: Playtest | null;
+  /** Shards a boss dropped, so collecting them counts toward that boss. */
+  private bossDrops = new WeakMap<Pickup, string>();
 
   hitstop = 0;
   time = 0;
@@ -100,6 +106,7 @@ export class World implements PlayerHost {
     this.save = opts.save ?? newSave();
     this.store = opts.store ?? null;
     this.sfxOut = opts.sfx ?? (() => {});
+    this.playtest = opts.playtest ?? null;
     this.rng = new Rng(opts.seed ?? 12345);
     const p = this.player;
     this.soulTarget = {
@@ -123,6 +130,12 @@ export class World implements PlayerHost {
 
   persist(): void {
     writeSave(this.store, this.save);
+    this.playtest?.flush();
+  }
+
+  /** The boss being fought right now, for the playtest log. */
+  private get fight(): string | null {
+    return this.bossActive && this.boss ? this.boss.kind : null;
   }
 
   // ---- rooms ----------------------------------------------------------------
@@ -308,6 +321,7 @@ export class World implements PlayerHost {
   update(inp: InputState): void {
     const p = this.player;
     p.noteInput(inp);
+    this.playtest?.time(this.room.def.id, this.fight, DT);
 
     if (this.shop) {
       this.updateShop(inp);
@@ -459,22 +473,24 @@ export class World implements PlayerHost {
     for (const e of this.enemies) {
       const cb = e.contactBox();
       if (!e.dead && cb && overlap(hb, cb)) {
-        this.damagePlayer(e.cx);
+        this.damagePlayer(e.cx, `contact:${e.kind}`);
         return;
       }
     }
     for (const pr of this.projectiles) {
       if (pr.harmful && overlap(hb, pr)) {
-        this.damagePlayer(pr.cx);
+        this.damagePlayer(pr.cx, `projectile:${pr.kind}`);
         if (pr.kind === 'orb') pr.pop(this);
         return;
       }
     }
   }
 
-  damagePlayer(fromX: number, ignoreInvuln = false): boolean {
+  /** `source` names what dealt the hit, for the playtest log. */
+  damagePlayer(fromX: number, source = 'other', ignoreInvuln = false): boolean {
     const p = this.player;
     if (!p.takeHit(fromX, ignoreInvuln)) return false;
+    this.playtest?.hurt(this.room.def.id, this.fight, source, p.state === 'dead');
     this.hitstop = Math.max(this.hitstop, HITSTOP.hurt);
     this.camera.addTrauma(0.5);
     this.flash = 0.7;
@@ -492,7 +508,7 @@ export class World implements PlayerHost {
     const p = this.player;
     this.sfx(kind === 'liquid' ? 'splash' : 'spike');
     this.particles.burst(p.cx, p.y + p.h, 10, kind === 'liquid' ? '#3e6f7a' : '#d9dcef', 260, 3);
-    if (!this.damagePlayer(p.cx, true) || p.state === 'dead') return;
+    if (!this.damagePlayer(p.cx, `hazard:${kind}`, true) || p.state === 'dead') return;
     p.state = 'hazard';
     p.vx = p.vy = 0;
     this.startTransition(
@@ -536,10 +552,11 @@ export class World implements PlayerHost {
   }
 
   onBossDefeated(b: Warden | Vesper | Ashveil): void {
+    this.playtest?.fightWon(b.kind);
     this.bossActive = false;
     this.map.gatesClosed = false;
     this.boss = null;
-    this.spawnShards(b.cx, b.cy, b.shards);
+    this.spawnShards(b.cx, b.cy, b.shards, b.kind);
     this.particles.burst(b.cx, b.cy, 70, b instanceof Warden ? '#ffb27a' : b instanceof Vesper ? '#c9a6ff' : '#f0d8a8', 460, 4);
     this.camera.addTrauma(0.9);
     this.flash = 1;
@@ -573,9 +590,11 @@ export class World implements PlayerHost {
     this.persist();
   }
 
-  private spawnShards(x: number, y: number, n: number): void {
+  private spawnShards(x: number, y: number, n: number, boss?: string): void {
     for (let i = 0; i < n; i++) {
-      this.pickups.push(new Shard(x, y, (Math.random() - 0.5) * 360, -200 - Math.random() * 380));
+      const s = new Shard(x, y, (Math.random() - 0.5) * 360, -200 - Math.random() * 380);
+      if (boss) this.bossDrops.set(s, boss);
+      this.pickups.push(s);
     }
   }
 
@@ -590,6 +609,7 @@ export class World implements PlayerHost {
       if (pk instanceof Shard && pk.collectible) {
         pk.dead = true;
         this.save.shards++;
+        this.playtest?.earned(this.room.def.id, this.bossDrops.get(pk) ?? this.fight, 1);
         this.particles.burst(pk.cx, pk.cy, 3, '#8fd3ff', 120, 2);
         if (this.shardSfxCd <= 0) {
           this.sfx('shard');
@@ -676,8 +696,10 @@ export class World implements PlayerHost {
     }
     if (shop.t > 0.15 && (inp.pressed.jump || inp.pressed.confirm)) {
       const item = SHOP[shop.sel];
+      const cost = nextCost(this.save, item) ?? 0;
       const r = buy(this.save, item);
       if (r === 'bought') {
+        this.playtest?.spent(this.room.def.id, cost);
         this.applyStats();
         if (item.id === 'mask') this.player.hp = this.player.maxHp;
         this.persist();
@@ -713,6 +735,7 @@ export class World implements PlayerHost {
       this.bossActive = true;
       this.map.gatesClosed = true;
       b.wake();
+      this.playtest?.fightStarted(b.kind);
       this.sfx('gate');
       this.banner = { kind: 'boss', title: b.title, sub: b.sub, t: 0, dur: 3.4 };
     }
@@ -760,6 +783,7 @@ export class World implements PlayerHost {
         this.particles.dust(p.cx - p.facing * 10, p.cy + 6, 8, 1.2);
         break;
       case 'healed':
+        this.playtest?.healed(this.room.def.id, this.fight);
         this.particles.burst(p.cx, p.cy - 8, 22, '#ffffff', 220, 3);
         this.particles.ring(p.cx, p.cy, '#ffffff');
         break;

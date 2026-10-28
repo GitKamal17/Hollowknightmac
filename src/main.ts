@@ -9,14 +9,16 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 const audio = new AudioFx();
 const input = new InputManager(window);
 input.onGesture = () => audio.unlock();
-const game = new Game(browserStorage(), audio);
+// `?debug` exposes hooks for automated playtests and shows FPS; `?hitboxes` draws collision boxes;
+// `?telemetry` records a playtest log, exported from the pause menu.
+const params = new URLSearchParams(location.search);
+const game = new Game(browserStorage(), audio, { telemetry: params.has('telemetry'), download });
 const renderer = new Renderer(canvas);
 
 window.addEventListener('blur', () => game.autoPause());
+window.addEventListener('pagehide', () => game.playtest?.flush());
 canvas.focus();
 
-// `?debug` exposes hooks for automated playtests and shows FPS; `?hitboxes` draws collision boxes.
-const params = new URLSearchParams(location.search);
 renderer.hitboxes = params.has('hitboxes');
 if (params.has('debug')) {
   renderer.debug = true;
@@ -34,6 +36,15 @@ if (params.has('debug')) {
       },
     },
   });
+}
+
+function download(filename: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 runLoop(

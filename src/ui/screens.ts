@@ -115,7 +115,7 @@ export function drawTitle(ctx: Ctx, t: number, items: string[], selected: number
   ctx.fillText(`Arrows to choose  ·  Z or Enter to confirm  ·  M to ${muted ? 'unmute' : 'mute'}`, VIEW_W / 2, VIEW_H - 30);
 }
 
-export function drawPause(ctx: Ctx, items: string[], selected: number): void {
+export function drawPause(ctx: Ctx, items: string[], selected: number, note = ''): void {
   ctx.fillStyle = 'rgba(3,4,8,0.78)';
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   ctx.textAlign = 'center';
@@ -130,5 +130,12 @@ export function drawPause(ctx: Ctx, items: string[], selected: number): void {
     ctx.fillStyle = on ? '#ffffff' : '#8d9ab3';
     ctx.fillText(on ? `◆  ${item}  ◆` : item, VIEW_W / 2, 160 + i * 38);
   });
-  drawControls(ctx, VIEW_W / 2 - 270, 262, 0.95);
+  // A third item pushes the controls table down a row.
+  const below = 160 + (items.length - 1) * 38;
+  if (note) {
+    ctx.font = `14px ${SANS}`;
+    ctx.fillStyle = '#9fb0cc';
+    ctx.fillText(note, VIEW_W / 2, below + 27);
+  }
+  drawControls(ctx, VIEW_W / 2 - 270, Math.max(262, below + 52), 0.95);
 }

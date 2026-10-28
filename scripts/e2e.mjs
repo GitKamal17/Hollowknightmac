@@ -1,12 +1,12 @@
 // Headless playthrough: starts the dev server, plays with real key presses,
-// visits every room, fights the boss, saves screenshots, and fails on any
-// console error.
+// visits every room, fights the bosses, exports the playtest log, saves
+// screenshots, and fails on any console error.
 //
 //   npm run e2e
 //
 // Needs Playwright with Chromium: `npm i -D playwright && npx playwright install chromium`.
 
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { createServer } from 'vite';
 
@@ -60,7 +60,7 @@ const check = (cond, msg) => {
 
 let failed = false;
 try {
-  await page.goto(`http://localhost:${PORT}/?debug`);
+  await page.goto(`http://localhost:${PORT}/?debug&telemetry`);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await wait(900);
@@ -209,9 +209,19 @@ try {
   const boss = await page.evaluate(() => ({ hp: window.__gloam.world.boss?.hp ?? 0, max: window.__gloam.world.boss?.maxHp ?? 0 }));
   check(boss.hp < boss.max, `the boss takes damage from strikes (hp ${boss.hp}/${boss.max})`);
 
-  console.log('Pause menu');
+  console.log('Pause menu: export the playtest log');
   await tap('Escape');
   await wait(300);
+  const download = page.waitForEvent('download', { timeout: 5000 });
+  await tap('ArrowDown');
+  await tap('Enter');
+  const file = await download;
+  const log = JSON.parse(readFileSync(await file.path(), 'utf8'));
+  check(
+    /^gloamwell-playtest-.*\.json$/.test(file.suggestedFilename()) && log.rooms.gate?.time > 0 && log.rooms.roots?.time > 0 && log.bosses.warden?.attempts === 1,
+    `Export playtest downloads the log (${file.suggestedFilename()}, gate ${log.rooms.gate?.time}s, warden ${JSON.stringify(log.bosses.warden)})`,
+  );
+  await wait(200);
   await shot('13-pause');
   await tap('Escape');
 
